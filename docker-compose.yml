@@ -6,7 +6,7 @@ services:
     image: flightlog:local
     container_name: flightlog
     ports:
-      - "${FLIGHTLOG_PORT:-8321}:8321"
+      - "${FLIGHTLOG_BIND:-127.0.0.1}:${FLIGHTLOG_PORT:-8321}:8321"
     volumes:
       # 备份此目录 = 备份全部数据（勿把 data/ 提交进 git）
       - ./data:/app/data
@@ -23,6 +23,16 @@ services:
       FLIGHTLOG_CATALOG_AUTO: "${FLIGHTLOG_CATALOG_AUTO:-0}"
       FLIGHTLOG_CATALOG_SKIP_FAA: "${FLIGHTLOG_CATALOG_SKIP_FAA:-1}"
       FLIGHTLOG_CATALOG_START_DELAY: "${FLIGHTLOG_CATALOG_START_DELAY:-300}"
+      # Pocket ID：留空则不启用登录（本地开发）
+      FLIGHTLOG_OIDC_ISSUER: "${FLIGHTLOG_OIDC_ISSUER:-}"
+      FLIGHTLOG_OIDC_CLIENT_ID: "${FLIGHTLOG_OIDC_CLIENT_ID:-}"
+      FLIGHTLOG_OIDC_CLIENT_SECRET: "${FLIGHTLOG_OIDC_CLIENT_SECRET:-}"
+      FLIGHTLOG_OIDC_ALLOWED_EMAILS: "${FLIGHTLOG_OIDC_ALLOWED_EMAILS:-}"
+      FLIGHTLOG_OIDC_HOSTS: "${FLIGHTLOG_OIDC_HOSTS:-}"
+      FLIGHTLOG_SESSION_SECRET: "${FLIGHTLOG_SESSION_SECRET:-}"
+      FLIGHTLOG_LLM_KEY: "${FLIGHTLOG_LLM_KEY:-}"
+      FLIGHTLOG_LLM_BASE: "${FLIGHTLOG_LLM_BASE:-}"
+      FLIGHTLOG_LLM_MODEL: "${FLIGHTLOG_LLM_MODEL:-}"
     restart: unless-stopped
     init: true
     stop_grace_period: 15s

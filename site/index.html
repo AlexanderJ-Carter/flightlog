@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FlightLog · 个人飞行档案</title>
+<meta name="description" content="本地优先的个人飞行档案：地图、统计、多源导入、合法公开数据采集。MIT 许可。">
+<style>
+  :root { color-scheme: dark; --bg:#0e141b; --card:#17202a; --text:#e8eef4; --muted:#8ea0b3; --accent:#2ec4b6; }
+  * { box-sizing: border-box }
+  body { margin:0; font-family: "Segoe UI", "PingFang SC", sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width: 760px; margin: 0 auto; padding: 4rem 1.4rem 3rem; }
+  h1 { font-size: 2.4rem; letter-spacing: -0.03em; margin: 0 0 .4rem; }
+  p { line-height: 1.65; color: var(--muted); }
+  a { color: var(--accent); }
+  .card { background: var(--card); border-radius: 16px; padding: 1.2rem 1.3rem; margin: 1.2rem 0; }
+  code { font-size: .9em }
+  footer { max-width: 760px; margin: 0 auto; padding: 0 1.4rem 3rem; color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>FlightLog</h1>
+  <p>本地优先的个人飞行档案。地图航迹、统计、多源导入，以及合法的公开航空数据采集。代码 MIT，数据不进仓库。</p>
+  <div class="card">
+    <p>在线实例：<a href="https://flightlog.alexander.xin">flightlog.alexander.xin</a></p>
+    <p>源码：<a href="https://github.com/AlexanderJ-Carter/flightlog">AlexanderJ-Carter/flightlog</a></p>
+  </div>
+  <h2>本地启动</h2>
+  <pre><code>docker compose up -d --build
+# http://localhost:8321</code></pre>
+  <p>密钥、数据库和采集缓存只留在本机 <code>data/</code>。第三方数据许可见仓库内 <code>docs/THIRD_PARTY_NOTICES.md</code>。</p>
+</main>
+<footer>© 2026 FlightLog · <a href="https://github.com/AlexanderJ-Carter/flightlog/blob/main/LICENSE">MIT</a></footer>
+</body>
+</html>

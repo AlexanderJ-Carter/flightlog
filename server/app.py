@@ -10,6 +10,7 @@ import threading
 from contextlib import asynccontextmanager
 
 import airports as airports_mod
+import auth_oidc
 import catalog_db
 import config_store
 import db
@@ -17,9 +18,9 @@ import extract as extractor
 import fleet_db
 import lookup as lookup_proxy
 import scheduler
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -46,6 +47,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def oidc_gate(request, call_next):
+    blocked = auth_oidc.require(request)
+    if blocked is not None:
+        return blocked
+    return await call_next(request)
+
+
+@app.get("/api/auth/login")
+async def auth_login(request: Request):
+    if not auth_oidc.enabled():
+        return RedirectResponse("/")
+    return await auth_oidc.login(request)
+
+
+@app.get("/api/auth/callback")
+async def auth_callback(request: Request):
+    return await auth_oidc.callback(request)
+
+
+@app.get("/api/auth/logout")
+def auth_logout(request: Request):
+    return auth_oidc.logout(request)
 
 
 @app.middleware("http")

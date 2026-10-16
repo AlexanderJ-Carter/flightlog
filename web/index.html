@@ -15,6 +15,7 @@
   <div class="brand">
     <span class="brand-mark">✈</span>
     <span>FlightLog</span>
+    <a class="brand-license" href="https://github.com/AlexanderJ-Carter/flightlog/blob/main/LICENSE">MIT</a>
   </div>
   <nav class="nav-surfaces" aria-label="主表面">
     <button type="button" data-surface="atlas" class="active">档案</button>
@@ -29,6 +30,7 @@
     <span class="pill" id="provPill" title="数据源">航线库</span>
     <span class="pill off" id="apiPill"><span class="dot"></span><span id="apiTxt">未连接</span></span>
     <button type="button" class="pill btn-pill" id="themeBtn" title="切换到浅色">浅色</button>
+    <a class="pill btn-pill" id="logoutBtn" href="/api/auth/logout" style="text-decoration:none">退出</a>
   </div>
 </header>
 
@@ -297,6 +299,13 @@
 
 <div id="toast"></div>
 
-<script type="module" src="/js/app.js?v=20261016"></script>
+<footer class="site-foot">
+  <span>© 2026 FlightLog</span>
+  <a href="https://github.com/AlexanderJ-Carter/flightlog">源码</a>
+  <a href="https://github.com/AlexanderJ-Carter/flightlog/blob/main/LICENSE">MIT</a>
+  <a href="https://github.com/AlexanderJ-Carter/flightlog/blob/main/docs/THIRD_PARTY_NOTICES.md">第三方数据</a>
+</footer>
+
+<script type="module" src="/js/app.js?v=20261016b"></script>
 </body>
 </html>

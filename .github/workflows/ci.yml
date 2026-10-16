@@ -21,6 +21,28 @@ jobs:
           uv python install 3.12
           uv sync --locked --no-dev
 
+      - name: 密钥扫描
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          skip = {".git", ".venv", "data", "uv.lock"}
+          marker = "BEGIN " + "PRIVATE KEY"
+          pat = re.compile(marker + r"|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}")
+          hits = []
+          for p in Path(".").rglob("*"):
+              if not p.is_file() or any(part in skip for part in p.parts):
+                  continue
+              if p.suffix in {".png", ".woff2", ".db"}:
+                  continue
+              text = p.read_text(encoding="utf-8", errors="ignore")
+              if pat.search(text):
+                  hits.append(str(p))
+          if hits:
+              raise SystemExit("possible secrets:\n" + "\n".join(hits))
+          print("no secret patterns")
+          PY
+
       - name: 语法检查
         run: |
           uv run python - <<'PY'

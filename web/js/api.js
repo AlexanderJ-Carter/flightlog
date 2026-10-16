@@ -26,7 +26,15 @@ async function request(path, opts = {}) {
   if (opts.body && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
-  const r = await fetch(getBase() + path, { ...opts, headers });
+  const r = await fetch(getBase() + path, {
+    ...opts,
+    headers,
+    credentials: "same-origin",
+  });
+  if (r.status === 401 && !path.startsWith("/api/auth/")) {
+    location.href = "/api/auth/login";
+    throw new Error("需要登录");
+  }
   let data = null;
   const ct = r.headers.get("content-type") || "";
   if (ct.includes("application/json")) {

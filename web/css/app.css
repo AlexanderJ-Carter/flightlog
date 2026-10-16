@@ -114,6 +114,18 @@ input, textarea, select {
   font-size: 0.85rem;
   flex-shrink: 0;
 }
+.brand-license {
+  margin-left: 0.15rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text3);
+  text-decoration: none;
+}
+.brand-license:hover { color: var(--accent); border-color: var(--border-hi); }
 
 .nav-surfaces {
   display: flex;
@@ -186,8 +198,23 @@ input, textarea, select {
   z-index: 1;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 1.4rem 1.4rem 3.5rem;
+  padding: 1.4rem 1.4rem 2rem;
 }
+.site-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem 1rem;
+  padding: 1.2rem 1rem 1.6rem;
+  color: var(--text3);
+  font-size: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.site-foot a {
+  color: var(--text3);
+  text-decoration: none;
+}
+.site-foot a:hover { color: var(--accent); }
 
 .surface {
   display: none;

@@ -1,6 +1,8 @@
 # FlightLog · 我的飞行档案
 
-本地一键启动的个人飞行档案：地图航迹、统计、多种录入、备份导出、MCP 给 AI 用。
+本地优先的个人飞行档案：地图航迹、统计、多源导入、备份导出，以及合法的公开数据采集。代码 [MIT](LICENSE)，数据库与密钥不进 git。
+
+在线实例：<https://flightlog.alexander.xin>
 
 ```bash
 docker compose up -d --build

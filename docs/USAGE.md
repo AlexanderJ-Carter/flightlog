@@ -113,6 +113,12 @@ FLIGHTLOG_DATA_DIR=../data uv run python sync_catalog.py
 | 变量 | 含义 |
 |------|------|
 | `FLIGHTLOG_PORT` | 宿主机端口（默认 8321） |
+| `FLIGHTLOG_BIND` | 绑定地址（默认 `127.0.0.1`；Tailscale 上可设节点 IP） |
+| `FLIGHTLOG_OIDC_ISSUER` | Pocket ID 地址，例如 `https://id.alexander.xin`；留空则不登录 |
+| `FLIGHTLOG_OIDC_CLIENT_ID` / `FLIGHTLOG_OIDC_CLIENT_SECRET` | Pocket ID 客户端 |
+| `FLIGHTLOG_OIDC_ALLOWED_EMAILS` | 允许登录的邮箱，逗号分隔 |
+| `FLIGHTLOG_OIDC_HOSTS` | 允许发起登录的主机名 |
+| `FLIGHTLOG_SESSION_SECRET` | 会话签名密钥 |
 | `FLIGHTLOG_MEM_LIMIT` / `FLIGHTLOG_CPUS` | 容器上限（默认 256m / 0.5） |
 | `FLIGHTLOG_HARVEST_AUTO` | `0` 关闭自动采集（默认开） |
 | `FLIGHTLOG_HARVEST_LIGHT` | `0` 完整枢纽扫描（默认 `1` 轻量） |
