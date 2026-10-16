@@ -534,7 +534,7 @@ def stats():
     with _connect() as conn:
         rows = conn.execute(
             "SELECT date, flight, from_ap, to_ap, cabin_class, seat_type, "
-            "flight_reason, duration_min, seat FROM flights"
+            "flight_reason, duration_min, seat, distance_km FROM flights"
         ).fetchall()
 
     total = len(rows)
@@ -550,7 +550,10 @@ def stats():
     months = Counter()
     weekdays = Counter()
     for r in rows:
-        km += haversine_km(r["from_ap"], r["to_ap"])
+        if r["distance_km"] is not None:
+            km += float(r["distance_km"])
+        else:
+            km += haversine_km(r["from_ap"], r["to_ap"])
         airports.update((r["from_ap"], r["to_ap"]))
         code = (r["flight"] or "")[:2]
         if code:

@@ -1,9 +1,13 @@
 {
   "mcpServers": {
     "flightlog": {
-      "command": "python3",
+      "command": "uv",
       "args": [
-        "/绝对路径/flightlog/server/mcp_server.py"
+        "run",
+        "--directory",
+        "/绝对路径/flightlog/server",
+        "python",
+        "mcp_server.py"
       ],
       "env": {
         "FLIGHTLOG_DATA_DIR": "/绝对路径/flightlog/data"

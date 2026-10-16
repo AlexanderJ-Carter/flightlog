@@ -72,13 +72,36 @@ jobs:
           assert h.get("airports", 0) > 1000
           assert "catalog" in h
           fid = r.json()["id"]
-          assert c.put(f"/api/flights/{fid}", json={"seat": "33B"}).status_code == 200
-          assert c.get("/api/flights").json()["flights"][0]["seat"] == "33B"
+          assert c.put(f"/api/flights/{fid}", json={
+              "seat": "33B", "dep_time": "09:15", "trip_id": "ci",
+          }).status_code == 200
+          got = c.get("/api/flights").json()["flights"][0]
+          assert got["seat"] == "33B" and got["dep_time"] == "09:15"
+          assert got.get("distance_km")
+          assert c.put(f"/api/flights/{fid}/track", json={
+              "points": [[40.0, 116.0], [31.0, 121.0]],
+              "source_name": "ci",
+          }).status_code == 200
+          assert c.get(f"/api/flights/{fid}/track").json()["point_count"] == 2
+          assert "countries" in c.get("/api/countries").json()
           exp = c.get("/api/export?format=json").json()
           assert exp["flights"] and exp["flights"][0]["flight"] == "MU5101"
           assert c.delete(f"/api/flights/{fid}").status_code == 200
           imp = c.post("/api/import", json={"rows": exp["flights"], "replace": True})
           assert imp.status_code == 200 and imp.json()["added"] == 1
+          # 多源导入 dry-run
+          import io
+          csv_body = (
+              "Date,From,To,Flight_number,Airline,Seat,Seat_type,Class,Reason\n"
+              "2026-06-01,PEK,SHA,CA1515,CA,12A,W,Y,L\n"
+          )
+          dry = c.post(
+              "/api/import/file",
+              data={"source": "openflights", "dry_run": "true"},
+              files={"file": ("of.csv", io.BytesIO(csv_body.encode()), "text/csv")},
+          )
+          assert dry.status_code == 200, dry.text
+          assert dry.json()["parsed"] == 1 and dry.json()["source"] == "openflights"
           detail = c.get("/api/airports/PEK")
           assert detail.status_code in (200, 404)  # 目录未导入时 404 可接受
           print("ci api ok")

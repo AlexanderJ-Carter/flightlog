@@ -22,17 +22,23 @@ Base URL：`http://localhost:8321`（Docker 启动后）
 {"flights": [
   {"id": 1, "date": "2026-05-01", "flight": "MU5101",
    "from": "PEK", "to": "SHA", "seat": "32A", "note": "出差",
-   "aircraft": "A320", "registration": "B-1234"}
+   "aircraft": "A320", "registration": "B-1234",
+   "cabin_class": "economy", "seat_type": "window", "flight_reason": "business",
+   "dep_time": "08:30", "arr_time": "10:40",
+   "dep_terminal": "T3", "arr_terminal": "T2",
+   "dep_gate": "C12", "arr_gate": "B5",
+   "trip_id": "spring", "distance_km": 1075.7, "duration_min": 130,
+   "airline_name": "China Eastern"}
 ]}
 ```
 
 ### `POST /api/flights`
 
-成功 `201`：
+成功 `201`。除必填 `date/flight/from/to` 外，可选舱位、座位类型、事由、时刻、航站楼、登机口、行程、`duration_min`、`distance_km`（未传则按大圆估算）等。
 
 ```json
 {"date": "2026-05-01", "flight": "MU5101", "from": "PEK", "to": "SHA",
- "seat": "32A", "note": "出差", "aircraft": "A320", "registration": "B-1234"}
+ "seat": "32A", "dep_time": "08:30", "cabin_class": "economy"}
 ```
 
 ```json
@@ -58,15 +64,18 @@ Base URL：`http://localhost:8321`（Docker 启动后）
 ### `GET /api/stats`
 
 ```json
-{"total": 28, "km": 62653.2, "airports": 15,
+{"total": 28, "km": 62653.2, "duration_min": 4120, "airports": 15,
  "airlines": {"MU": 12, "CA": 9},
  "years": {"2024": 10, "2025": 12},
  "routes": {"PEK-SHA": 5},
- "aircraft": {"A320": 8, "B737": 5},
- "aircraft_types": 2}
+ "cabin_class": {"economy": 20}, "seat_type": {"window": 12},
+ "flight_reason": {"leisure": 15}, "continents": {"AS": 10},
+ "countries": {"CN": {"count": 12, "name": "China"}},
+ "months": {"2026-05": 3}, "weekdays": {"Mon": 4},
+ "aircraft": {"A320": 8, "B737": 5}, "aircraft_types": 2}
 ```
 
-`km` 按 haversine 大圆距离累计（未收录机场记 0）。
+`km` 优先累计已落库 `distance_km`，否则按 haversine（无坐标记 0）。
 
 ## 地图
 

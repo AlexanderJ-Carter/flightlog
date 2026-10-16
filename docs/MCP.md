@@ -11,13 +11,18 @@
 {
   "mcpServers": {
     "flightlog": {
-      "command": "python3",
-      "args": ["/绝对路径/flightlog/server/mcp_server.py"],
+      "command": "uv",
+      "args": [
+        "run", "--directory", "/绝对路径/flightlog/server",
+        "python", "mcp_server.py"
+      ],
       "env": { "FLIGHTLOG_DATA_DIR": "/绝对路径/flightlog/data" }
     }
   }
 }
 ```
+
+完整示例见 `server/mcp_config.example.json`。需本机已安装 [uv](https://github.com/astral-sh/uv)。
 
 3. 重启 Claude Desktop，出现 flightlog 工具图标即成功
 

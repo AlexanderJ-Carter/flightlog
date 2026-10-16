@@ -41,6 +41,8 @@ pydantic-core==2.50.1
     # via pydantic
 python-dotenv==1.2.4
     # via uvicorn
+python-multipart==0.0.32
+    # via flightlog
 pyyaml==6.0.3
     # via uvicorn
 starlette==1.8.0
