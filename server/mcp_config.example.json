@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "flightlog": {
+      "command": "python3",
+      "args": [
+        "/Users/huanghaoyu/Desktop/flightlog/server/mcp_server.py"
+      ],
+      "env": {
+        "FLIGHTLOG_DATA_DIR": "/Users/huanghaoyu/Desktop/flightlog/server/data"
+      }
+    }
+  }
+}

@@ -11,11 +11,30 @@
 :root{
   --bg:#080b14;--bg2:#0d1220;--card:rgba(255,255,255,.03);--card-solid:#111828;
   --border:rgba(255,255,255,.08);--border-hi:rgba(0,212,255,.35);
-  --accent:#00d4ff;--accent2:#7c5cfc;--text:#eef2fa;--text2:#94a0b8;--text3:#5a6478;
+  --accent:#0090b8;--accent2:#6a4fe0;--text:#eef2fa;--text2:#94a0b8;--text3:#5a6478;
   --green:#00e676;--gold:#ffd54f;--red:#ff5d6c;
   --shadow:0 8px 32px rgba(0,0,0,.4);
   --radius:16px;
 }
+:root[data-theme="dark"]{
+  --accent:#00d4ff;--accent2:#7c5cfc;
+}
+:root[data-theme="light"]{
+  --bg:#f5f7fb;--bg2:#eef1f7;--card:rgba(255,255,255,.72);--card-solid:#ffffff;
+  --border:rgba(15,30,60,.1);--border-hi:rgba(0,144,184,.45);
+  --accent:#0080ad;--accent2:#5a3fd6;--text:#1a2436;--text2:#5a6478;--text3:#94a0b8;
+  --green:#00a854;--gold:#c99700;--red:#e03e4e;
+  --shadow:0 8px 28px rgba(30,50,90,.12);
+}
+:root[data-theme="light"] body::before{
+  background:radial-gradient(ellipse 60% 40% at 20% 0%,rgba(0,144,184,.06),transparent),
+             radial-gradient(ellipse 50% 40% at 90% 20%,rgba(106,79,224,.05),transparent)
+}
+:root[data-theme="light"] .stat .num{
+  background:linear-gradient(120deg,#1a2436,#3d5a8f);-webkit-background-clip:text
+}
+:root[data-theme="light"] .tab.active{background:var(--card-solid)}
+:root[data-theme="light"] .toast{background:#fff}
 body{background:var(--bg);color:var(--text);
   font-family:-apple-system,'PingFang SC','Inter','Helvetica Neue',sans-serif;
   font-feature-settings:'tnum';overflow-x:hidden}
@@ -191,6 +210,7 @@ td .muted{color:var(--text3)}
   <div class="api-ctl">
     <input id="apiBase" value="http://localhost:8321" spellcheck="false">
     <span class="pill off" id="apiPill"><span class="dot"></span><span id="apiTxt">未连接</span></span>
+    <button class="pill" id="themeBtn" title="切换主题" style="cursor:pointer">🌗</button>
   </div>
 </header>
 
@@ -273,6 +293,25 @@ td .muted{color:var(--text3)}
 <div id="toast"></div>
 
 <script>
+// ===== 主题（跟随系统 + 手动切换 + localStorage 记忆）=====
+(function(){
+  const saved = localStorage.getItem('fl-theme');
+  const sys = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.dataset.theme = saved || sys;
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', e=>{
+    if(!localStorage.getItem('fl-theme'))
+      document.documentElement.dataset.theme = e.matches ? 'light' : 'dark';
+  });
+})();
+document.getElementById('themeBtn').onclick = function(){
+  const cur = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = cur;
+  localStorage.setItem('fl-theme', cur);
+  this.textContent = cur === 'light' ? '☀️' : '🌙';
+};
+document.getElementById('themeBtn').textContent =
+  document.documentElement.dataset.theme === 'light' ? '☀️' : '🌙';
+
 let map=null, layers=[];
 
 function api(path, opts={}) {
@@ -322,7 +361,16 @@ async function loadFlights(){
 
 function initMap(){
   map = L.map('map',{center:[34,108],zoom:4,minZoom:2,maxZoom:12,attributionControl:false,worldCopyJump:true});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19}).addTo(map);
+  window._tiles = L.tileLayer(tileUrl(),{subdomains:'abcd',maxZoom:19}).addTo(map);
+  document.getElementById('themeBtn').addEventListener('click',()=>{
+    map.removeLayer(window._tiles);
+    window._tiles = L.tileLayer(tileUrl(),{subdomains:'abcd',maxZoom:19}).addTo(map);
+  });
+  function tileUrl(){
+    return document.documentElement.dataset.theme === 'light'
+      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+  }
 }
 function renderMap(airports, routes){
   layers.forEach(l=>map.removeLayer(l)); layers=[];
