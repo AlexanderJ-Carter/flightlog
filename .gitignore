@@ -1,0 +1,15 @@
+# 数据与产物
+data/
+*.db
+*.db-wal
+*.db-shm
+__pycache__/
+*.pyc
+
+# 运行时
+api_keys.json
+
+# IDE / 系统
+.DS_Store
+.vscode/
+.idea/

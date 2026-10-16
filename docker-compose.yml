@@ -1,0 +1,9 @@
+services:
+  flightlog:
+    build: .
+    container_name: flightlog
+    ports:
+      - "8321:8321"
+    volumes:
+      - ./data:/app/data   # SQLite 持久化（备份这个目录=备份全部数据）
+    restart: unless-stopped

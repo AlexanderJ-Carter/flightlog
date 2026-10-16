@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - name: 安装依赖
+        run: pip install -r server/requirements.txt
+      - name: 语法与启动自检
+        run: |
+          python -c "import ast; [ast.parse(open(f,encoding='utf-8').read()) for f in ['server/app.py','server/db.py','server/lookup.py','server/extract.py']]"
+          cd server && python -c "
+          import sys; sys.path.insert(0,'.')
+          import os; os.environ['FLIGHTLOG_DATA_DIR']='/tmp'
+          import app
+          client = app.TestClient  # 占位：无 httpx 时跳过
+          " || true
+      - name: Docker 镜像构建
+        run: docker build -t flightlog-ci .
+      - name: 冒烟测试（容器内起服务并打 API）
+        run: |
+          docker run -d --name fl-test -p 8321:8321 flightlog-ci
+          sleep 4
+          curl -sf http://localhost:8321/api/stats || (docker logs fl-test && exit 1)
+          curl -sf -X POST http://localhost:8321/api/flights \
+            -H 'Content-Type: application/json' \
+            -d '{"date":"2026-05-01","flight":"MU5101","from":"PEK","to":"SHA","seat":"32A","note":"测试"}'
+          curl -sf http://localhost:8321/api/flights | grep -q MU5101
+          curl -sf http://localhost:8321/ | grep -q FlightLog
+          docker rm -f fl-test

@@ -1,0 +1,7 @@
+# 不打进镜像的文件
+data/
+__pycache__/
+*.pyc
+api_keys.json
+Dockerfile
+docker-compose.yml
