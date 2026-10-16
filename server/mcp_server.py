@@ -5,12 +5,15 @@
 协议版本：2024-11-05
 依赖：零第三方依赖（标准库 json/sys）；复用同目录 db.py / extract.py
 
-暴露 5 个工具：
-    add_flight(date, flight, from_ap, to_ap, seat?, note?)  录入单条航班
+暴露 8 个工具：
+    add_flight(date, flight, from_ap, to_ap, seat?, note?, aircraft?)  录入单条航班
     list_flights()                                          全部航班（新→旧）
     flight_stats()                                          总里程/机场数/航司/年度统计
     extract_text(text)                                      订票短信 → 结构化（不入库）
     add_flights_from_text(text)                             短信解析 + 批量入库
+    update_flight(id, ...)                                  编辑记录（部分更新）
+    delete_flight(id)                                       删除记录
+    export_flights()                                        导出档案 JSON 备份
 
 用法（MCP 客户端配置见 mcp_config.example.json）：
     由客户端以 stdio 子进程方式拉起，本脚本从 stdin 读 JSON-RPC、往 stdout 写结果，
@@ -91,6 +94,40 @@ TOOLS = [
             "required": ["text"],
         },
     },
+    {
+        "name": "update_flight",
+        "description": "编辑一条已有记录：只传需要修改的字段，未传的不动。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "description": "记录 id（list_flights 可查到）"},
+                "date": {"type": "string", "description": "新日期 YYYY-MM-DD（可选）"},
+                "flight": {"type": "string", "description": "新航班号（可选）"},
+                "from_ap": {"type": "string", "description": "新出发机场（可选）"},
+                "to_ap": {"type": "string", "description": "新到达机场（可选）"},
+                "seat": {"type": "string", "description": "新座位（可选）"},
+                "note": {"type": "string", "description": "新备注（可选）"},
+                "aircraft": {"type": "string", "description": "新机型（可选）"},
+            },
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "delete_flight",
+        "description": "按 id 删除一条飞行记录（幂等：删不存在的 id 也返回成功）。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "description": "要删除的记录 id"},
+            },
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "export_flights",
+        "description": "导出整个飞行档案（JSON 列表），用于备份或迁移到其他工具。",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
 ]
 
 
@@ -148,10 +185,45 @@ def tool_add_flights_from_text(args):
             continue
         fid = db.add_flight(date=r["date"], flight=r["flight"],
                             from_ap=r["from"], to_ap=r["to"],
-                            seat=r.get("seat", ""), note=r.get("note", ""))
+                            seat=r.get("seat", ""), note=r.get("note", ""),
+                            aircraft=r.get("aircraft", ""))
         added.append({"id": fid, **r})
     return {"added_count": len(added), "added": added,
             "skipped_count": len(skipped), "skipped": skipped}
+
+
+def tool_update_flight(args):
+    fid = args.get("id")
+    if not isinstance(fid, int):
+        raise ValueError("id 必须是整数（来自 list_flights 的记录 id）")
+    fields = {k: v for k, v in args.items()
+              if k != "id" and v not in (None, "")}
+    if not fields:
+        raise ValueError("除 id 外至少还要传一个要修改的字段")
+    if "flight" in fields:
+        fields["flight"] = str(fields["flight"]).strip().upper()
+    for k in ("from_ap", "to_ap"):
+        if k in fields:
+            fields[k] = str(fields[k]).strip().upper()
+    ok = db.update_flight(fid, **fields)
+    if not ok:
+        raise ValueError(f"记录 id={fid} 不存在")
+    return {"ok": True, "id": fid, "updated_fields": sorted(fields)}
+
+
+def tool_delete_flight(args):
+    fid = args.get("id")
+    if not isinstance(fid, int):
+        raise ValueError("id 必须是整数")
+    db.delete_flight(fid)
+    return {"ok": True, "deleted_id": fid}
+
+
+def tool_export_flights(_args):
+    flights = db.list_flights()
+    return {"count": len(flights),
+            "hint": "JSON 备份；把 flights 数组喂回 add_flight 可恢复",
+            "flights": flights}
 
 
 TOOL_IMPLS = {
@@ -160,6 +232,9 @@ TOOL_IMPLS = {
     "flight_stats": tool_flight_stats,
     "extract_text": tool_extract_text,
     "add_flights_from_text": tool_add_flights_from_text,
+    "update_flight": tool_update_flight,
+    "delete_flight": tool_delete_flight,
+    "export_flights": tool_export_flights,
 }
 
 

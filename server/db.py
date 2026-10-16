@@ -6,6 +6,7 @@
 """
 import math
 import os
+import re
 import sqlite3
 import threading
 from collections import Counter
@@ -153,12 +154,65 @@ def delete_flight(fid):
             conn.execute("DELETE FROM flights WHERE id=?", (fid,))
 
 
-def list_flights():
-    """全部记录，新→旧（date DESC, id DESC），键名与前端契约一致。"""
+UPDATE_FIELDS = {
+    "date": "date", "flight": "flight", "from_ap": "from_ap", "to_ap": "to_ap",
+    "seat": "seat", "note": "note", "aircraft": "aircraft",
+}
+
+
+def update_flight(fid, **fields):
+    """按 id 部分更新：只改传入且非 None 的字段。
+
+    返回 False 表示该 id 不存在（未做任何修改）。
+    """
+    sets, vals = [], []
+    for key, col in UPDATE_FIELDS.items():
+        if fields.get(key) is not None:
+            sets.append(f"{col}=?")
+            vals.append(fields[key])
+    if not sets:
+        return True
+    vals.append(fid)
+    with _lock:
+        with _connect() as conn:
+            cur = conn.execute(
+                f"UPDATE flights SET {', '.join(sets)} WHERE id=?", vals)
+            return cur.rowcount > 0
+
+
+def list_flights(year=None, airline=None, airport=None, q=None,
+                 limit=None, offset=0):
+    """航班列表（新→旧），支持可选筛选。
+
+    year    : 四位年份，按 date 前缀匹配
+    airline : 航司二字码，按 flight 前缀匹配（忽略大小写）
+    airport : 机场三字码，出发或到达任一端命中即可
+    q       : 自由文本，匹配航班号/机场码/备注（忽略大小写）
+    limit/offset : 分页（limit=None 表示全部）
+    """
+    conds, params = [], []
+    if year:
+        conds.append("date LIKE ?")
+        params.append(f"{year}%")
+    if airline:
+        conds.append("UPPER(flight) LIKE ?")
+        params.append(airline.upper() + "%")
+    if airport:
+        conds.append("(UPPER(from_ap)=? OR UPPER(to_ap)=?)")
+        params.extend([airport.upper(), airport.upper()])
+    if q:
+        like = f"%{q.upper()}%"
+        conds.append("(UPPER(flight) LIKE ? OR UPPER(from_ap) LIKE ? "
+                     "OR UPPER(to_ap) LIKE ? OR UPPER(IFNULL(note,'')) LIKE ?)")
+        params.extend([like, like, like, like])
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    lim = f" LIMIT {int(limit)} OFFSET {int(offset)}" if limit else ""
+
     with _connect() as conn:
         rows = conn.execute(
-            "SELECT id, date, flight, from_ap, to_ap, seat, note, aircraft "
-            "FROM flights ORDER BY date DESC, id DESC"
+            f"SELECT id, date, flight, from_ap, to_ap, seat, note, aircraft "
+            f"FROM flights {where} ORDER BY date DESC, id DESC{lim}",
+            params,
         ).fetchall()
     return [
         {
@@ -168,6 +222,43 @@ def list_flights():
         }
         for r in rows
     ]
+
+
+def import_rows(rows, replace=False):
+    """批量导入。rows 为 list_flights 同构的 dict 列表（契约键名）。
+
+    replace=True 时先清空现有记录（恢复备份场景）。
+    每行独立校验必填字段，坏行跳过并在 skipped 里给出原因。
+    返回 {"added": n, "skipped": [{"row": i, "reason": ...}]}。
+    """
+    added, skipped = 0, []
+    with _lock:
+        with _connect() as conn:
+            if replace:
+                conn.execute("DELETE FROM flights")
+            now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            for i, r in enumerate(rows):
+                try:
+                    date, flight = str(r["date"]), str(r["flight"]).upper()
+                    from_ap = str(r.get("from", "")).upper()
+                    to_ap = str(r.get("to", "")).upper()
+                    if not (date and flight and from_ap and to_ap):
+                        raise ValueError("缺少必填字段（date/flight/from/to）")
+                    if len(from_ap) != 3 or len(to_ap) != 3:
+                        raise ValueError("机场码不是三字码")
+                    if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+                        raise ValueError(f"日期格式应为 YYYY-MM-DD：{date!r}")
+                    conn.execute(
+                        "INSERT INTO flights(date, flight, from_ap, to_ap, seat, "
+                        "note, aircraft, created_at) VALUES(?,?,?,?,?,?,?,?)",
+                        (date, flight, from_ap, to_ap,
+                         str(r.get("seat", "") or ""), str(r.get("note", "") or ""),
+                         str(r.get("aircraft", "") or ""), now),
+                    )
+                    added += 1
+                except (KeyError, ValueError) as e:
+                    skipped.append({"row": i, "reason": str(e)})
+    return {"added": added, "skipped": skipped}
 
 
 # ------------------------------------------------------------------

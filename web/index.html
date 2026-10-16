@@ -253,8 +253,10 @@ td .muted{color:var(--text3)}
       <div class="field"><label>机型</label><input id="mAircraft" placeholder="A350 / 77W / C919"></div>
       <div class="field"><label>备注</label><input id="mNote" placeholder="靠窗，风景好"></div>
     </div>
-    <div style="margin-top:1.2rem">
-      <button class="btn btn-primary" onclick="submitManual()">✈️ 录入档案</button>
+    <div style="margin-top:1.2rem;display:flex;gap:.6rem;align-items:center">
+      <button class="btn btn-primary" id="mSubmit" onclick="submitManual()">✈️ 录入档案</button>
+      <button class="btn" id="mCancel" style="display:none" onclick="cancelEdit()">取消编辑</button>
+      <span id="mHint" style="font-size:.75rem;color:var(--text3)"></span>
     </div>
   </section>
 
@@ -281,7 +283,17 @@ td .muted{color:var(--text3)}
   </section>
 
   <section class="table-card">
-    <div class="th"><h2>航班明细</h2><span style="font-size:.78rem;color:var(--text3)" id="cntInfo"></span></div>
+    <div class="th" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+      <h2>航班明细</h2>
+      <input id="flSearch" placeholder="搜索 航班号/机场/机型/备注…" oninput="renderTable()"
+        style="flex:1;min-width:160px;max-width:280px;background:var(--card);border:1px solid var(--border);
+               border-radius:10px;padding:.4rem .8rem;font-size:.78rem">
+      <button class="btn btn-sm" onclick="exportCSV()" title="导出 CSV，可用 Excel 打开">⬇️ CSV</button>
+      <label class="btn btn-sm" style="cursor:pointer" title="从 JSON 备份恢复">⬆️ 恢复备份
+        <input type="file" accept=".json,application/json" style="display:none" onchange="importJSON(this)">
+      </label>
+      <span style="font-size:.78rem;color:var(--text3)" id="cntInfo"></span>
+    </div>
     <table>
       <thead><tr><th>日期</th><th>航班</th><th>航线</th><th>机型</th><th>座位</th><th>备注</th><th></th></tr></thead>
       <tbody id="tbody"><tr><td colspan="7" class="hint"><span class="spin"></span>加载中…</td></tr></tbody>
@@ -367,11 +379,17 @@ async function loadMap(){
 async function loadFlights(){
   try{
     const r = await api('/api/flights'); if(!r.ok) throw 0;
-    table((await r.json()).flights||[]);
+    window._flights = (await r.json()).flights||[];
+    renderTable();
   }catch(e){
     document.getElementById('tbody').innerHTML =
       '<tr><td colspan="7" class="empty"><span class="icon">🛫</span>暂无航班记录<br><small>后端启动后自动加载，或先用上方录入</small></td></tr>';
   }
+}
+function renderTable(){
+  const kw=(document.getElementById('flSearch').value||'').trim().toUpperCase();
+  const all=window._flights||[];
+  table(kw? all.filter(f=>[f.flight,f.from,f.to,f.aircraft,f.note,f.date].join(' ').toUpperCase().includes(kw)) : all);
 }
 
 function initMap(){
@@ -428,8 +446,50 @@ function table(flights){
     '<td>'+(f.aircraft?'<span class="ac-badge">'+esc(f.aircraft)+'</span>':'<span class="muted">–</span>')+'</td>'+
     '<td>'+(esc(f.seat)||'<span class="muted">–</span>')+'</td>'+
     '<td class="muted">'+esc(f.note)+'</td>'+
-    '<td><button class="btn btn-danger btn-sm" onclick="del('+f.id+')">删除</button></td></tr>'
+    '<td style="white-space:nowrap"><button class="btn btn-sm" onclick="editFlight('+f.id+')">编辑</button> '+
+    '<button class="btn btn-danger btn-sm" onclick="del('+f.id+')">删除</button></td></tr>'
   ).join('');
+}
+function editFlight(id){
+  const f=(window._flights||[]).find(x=>x.id===id); if(!f) return;
+  document.getElementById('mDate').value=f.date||'';
+  document.getElementById('mFlight').value=f.flight||'';
+  document.getElementById('mFrom').value=f.from||'';
+  document.getElementById('mTo').value=f.to||'';
+  document.getElementById('mSeat').value=f.seat||'';
+  document.getElementById('mAircraft').value=f.aircraft||'';
+  document.getElementById('mNote').value=f.note||'';
+  window._editingId=id;
+  document.getElementById('mSubmit').textContent='💾 保存修改';
+  document.getElementById('mCancel').style.display='';
+  document.getElementById('mHint').textContent='正在编辑记录 #'+id;
+  document.querySelector('.tab[data-tab="manual"]').click();
+  window.scrollTo({top:document.querySelector('#panel-manual').offsetTop-80, behavior:'smooth'});
+}
+function cancelEdit(){
+  window._editingId=null;
+  document.getElementById('mSubmit').textContent='✈️ 录入档案';
+  document.getElementById('mCancel').style.display='none';
+  document.getElementById('mHint').textContent='';
+  ['mDate','mFlight','mFrom','mTo','mSeat','mNote','mAircraft'].forEach(i=>document.getElementById(i).value='');
+}
+function exportCSV(){
+  const base=document.getElementById('apiBase').value.replace(/\/+$/,'');
+  window.open(base+'/api/export?format=csv');
+}
+async function importJSON(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  try{
+    const j=JSON.parse(await file.text());
+    const rows=j.flights||j.rows||(Array.isArray(j)?j:null);
+    if(!rows) throw 0;
+    const r=await api('/api/import',{method:'POST',body:JSON.stringify({rows})});
+    if(!r.ok) throw 0;
+    const res=await r.json();
+    toast('已恢复 '+res.added+' 条'+(res.skipped&&res.skipped.length?'，跳过 '+res.skipped.length+' 条无效数据':''));
+    loadAll();
+  }catch(e){ toast('导入失败：请确认是 flightlog 导出的 JSON 备份', true); }
+  input.value='';
 }
 function bars(id, obj, alt){
   const el=document.getElementById(id);
@@ -460,6 +520,11 @@ async function submitManual(){
   if(!d.mDate||!d.mFlight||!d.mFrom||!d.mTo) return toast('请填写日期、航班号、出发、到达', true);
   const body={date:d.mDate,flight:d.mFlight.toUpperCase(),from:d.mFrom.toUpperCase(),
     to:d.mTo.toUpperCase(),seat:d.mSeat,note:d.mNote,aircraft:d.mAircraft};
+  if(window._editingId){                       // 编辑模式 → PUT 部分更新
+    const r=await api('/api/flights/'+window._editingId,{method:'PUT',body:JSON.stringify(body)});
+    if(!r.ok) return toast('保存失败，请检查后端服务', true);
+    toast('已更新 ✈️'); cancelEdit(); loadAll(); return;
+  }
   const r=await api('/api/flights',{method:'POST',body:JSON.stringify(body)});
   if(!r.ok) return toast('录入失败，请检查后端服务', true);
   toast('已录入 ✈️');
