@@ -1,9 +1,43 @@
 services:
   flightlog:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: flightlog:local
     container_name: flightlog
     ports:
-      - "8321:8321"
+      - "${FLIGHTLOG_PORT:-8321}:8321"
     volumes:
-      - ./data:/app/data   # SQLite 持久化（备份这个目录=备份全部数据）
+      # 备份此目录 = 备份全部数据（勿把 data/ 提交进 git）
+      - ./data:/app/data
+    environment:
+      FLIGHTLOG_DATA_DIR: /app/data
+      FLIGHTLOG_WEB_DIR: /app/web
+      # —— 低资源默认 ——
+      FLIGHTLOG_HARVEST_AUTO: "${FLIGHTLOG_HARVEST_AUTO:-1}"
+      FLIGHTLOG_HARVEST_LIGHT: "${FLIGHTLOG_HARVEST_LIGHT:-1}"
+      FLIGHTLOG_HARVEST_INTERVAL_HOURS: "${FLIGHTLOG_HARVEST_INTERVAL_HOURS:-12}"
+      FLIGHTLOG_HARVEST_START_DELAY: "${FLIGHTLOG_HARVEST_START_DELAY:-120}"
+      FLIGHTLOG_HARVEST_PLANES: "${FLIGHTLOG_HARVEST_PLANES:-0}"
+      # 目录全量同步默认关（占流量）；需要时设 1 或 POST /api/fleet/catalog
+      FLIGHTLOG_CATALOG_AUTO: "${FLIGHTLOG_CATALOG_AUTO:-0}"
+      FLIGHTLOG_CATALOG_SKIP_FAA: "${FLIGHTLOG_CATALOG_SKIP_FAA:-1}"
+      FLIGHTLOG_CATALOG_START_DELAY: "${FLIGHTLOG_CATALOG_START_DELAY:-300}"
     restart: unless-stopped
+    init: true
+    stop_grace_period: 15s
+    # Compose v2 资源上限（约一台 NAS/小主机可长期挂着）
+    mem_limit: ${FLIGHTLOG_MEM_LIMIT:-256m}
+    cpus: ${FLIGHTLOG_CPUS:-0.50}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8321/api/health', timeout=3)",
+        ]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 40s

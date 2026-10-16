@@ -1,15 +1,39 @@
-# 数据与产物
-data/
+# —— 运行时数据（只保留本地，勿提交）——
+data/*
+!data/.gitkeep
+server/data/
 *.db
 *.db-wal
 *.db-shm
-__pycache__/
-*.pyc
+**/cache/
+*.zip
+ReleasableAircraft.zip
 
-# 运行时
+# 密钥与本地配置
 api_keys.json
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+.coverage
+htmlcov/
 
 # IDE / 系统
 .DS_Store
 .vscode/
 .idea/
+*~
+*.swp
+*.swo

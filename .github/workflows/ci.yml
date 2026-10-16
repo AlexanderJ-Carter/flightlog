@@ -10,29 +10,99 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
-      - name: 安装依赖
-        run: pip install -r server/requirements.txt
-      - name: 语法与启动自检
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Python + 依赖
         run: |
-          python -c "import ast; [ast.parse(open(f,encoding='utf-8').read()) for f in ['server/app.py','server/db.py','server/lookup.py','server/extract.py']]"
-          cd server && python -c "
-          import sys; sys.path.insert(0,'.')
-          import os; os.environ['FLIGHTLOG_DATA_DIR']='/tmp'
+          uv python install 3.12
+          uv sync --locked --no-dev
+
+      - name: 语法检查
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+          import ast
+          files = sorted(Path("server").glob("*.py"))
+          assert files, "no python files"
+          for f in files:
+              ast.parse(f.read_text(encoding="utf-8"), filename=str(f))
+          print(f"parsed {len(files)} modules")
+          PY
+
+      - name: lookup 单元测试
+        run: cd server && uv run python test_lookup.py
+
+      - name: API 集成自检
+        run: |
+          uv run python - <<'PY'
+          import os, sys
+          os.environ["FLIGHTLOG_DATA_DIR"] = "/tmp/flightlog-ci"
+          os.environ["FLIGHTLOG_HARVEST_AUTO"] = "0"
+          os.environ["FLIGHTLOG_CATALOG_AUTO"] = "0"
+          sys.path.insert(0, "server")
+          import db
+          db.init_db()
+          from fastapi.testclient import TestClient
           import app
-          client = app.TestClient  # 占位：无 httpx 时跳过
-          " || true
+          c = TestClient(app.app)
+          assert c.get("/api/stats").status_code == 200
+          r = c.post("/api/flights", json={
+              "date": "2026-05-01", "flight": "MU5101",
+              "from": "PEK", "to": "SHA", "seat": "32A", "aircraft": "A320"})
+          assert r.status_code == 201, r.text
+          assert c.post("/api/flights", json={
+              "date": "2026-05-01", "flight": "MU5101",
+              "from": "PEK", "to": "SHA"}).status_code == 409
+          m = c.get("/api/map").json()
+          assert m["routes"] and "path" in m["routes"][0]
+          assert "FlightLog" in c.get("/").text
+          assert c.get("/css/app.css").status_code == 200
+          assert c.get("/js/app.js").status_code == 200
+          assert c.get("/js/lib/leaflet.js").status_code == 200
+          assert c.get("/css/leaflet.css").status_code == 200
+          assert c.get("/css/fonts.css").status_code == 200
+          h = c.get("/api/health").json()
+          assert h.get("ok") and "adsbdb" in h.get("providers", [])
+          assert h.get("live_lookup") is False
+          assert h.get("providers") == ["adsbdb"]
+          assert h.get("airports", 0) > 1000
+          assert "catalog" in h
+          fid = r.json()["id"]
+          assert c.put(f"/api/flights/{fid}", json={"seat": "33B"}).status_code == 200
+          assert c.get("/api/flights").json()["flights"][0]["seat"] == "33B"
+          exp = c.get("/api/export?format=json").json()
+          assert exp["flights"] and exp["flights"][0]["flight"] == "MU5101"
+          assert c.delete(f"/api/flights/{fid}").status_code == 200
+          imp = c.post("/api/import", json={"rows": exp["flights"], "replace": True})
+          assert imp.status_code == 200 and imp.json()["added"] == 1
+          detail = c.get("/api/airports/PEK")
+          assert detail.status_code in (200, 404)  # 目录未导入时 404 可接受
+          print("ci api ok")
+          PY
+
       - name: Docker 镜像构建
         run: docker build -t flightlog-ci .
-      - name: 冒烟测试（容器内起服务并打 API）
+
+      - name: 冒烟测试（容器）
         run: |
-          docker run -d --name fl-test -p 8321:8321 flightlog-ci
-          sleep 4
+          docker run -d --name fl-test -p 8321:8321 \
+            -e FLIGHTLOG_HARVEST_AUTO=0 \
+            -e FLIGHTLOG_CATALOG_AUTO=0 \
+            flightlog-ci
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl -sf http://localhost:8321/api/health && break
+            sleep 2
+          done
           curl -sf http://localhost:8321/api/stats || (docker logs fl-test && exit 1)
           curl -sf -X POST http://localhost:8321/api/flights \
             -H 'Content-Type: application/json' \
-            -d '{"date":"2026-05-01","flight":"MU5101","from":"PEK","to":"SHA","seat":"32A","note":"测试"}'
-          curl -sf http://localhost:8321/api/flights | grep -q MU5101
+            -d '{"date":"2026-05-02","flight":"CA1234","from":"PEK","to":"CTU","seat":"12A"}'
+          curl -sf http://localhost:8321/api/flights | grep -q CA1234
           curl -sf http://localhost:8321/ | grep -q FlightLog
+          curl -sf http://localhost:8321/css/app.css | head -c 20 | grep -q .
+          curl -sf http://localhost:8321/js/app.js | head -c 20 | grep -q .
           docker rm -f fl-test

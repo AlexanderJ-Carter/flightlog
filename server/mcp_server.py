@@ -54,6 +54,8 @@ TOOLS = [
                 "to_ap": _ap_schema("到达机场三字码，如 SHA"),
                 "seat": {"type": "string", "description": "座位号（可选），如 34A"},
                 "note": {"type": "string", "description": "备注（可选）"},
+                "aircraft": {"type": "string", "description": "机型（可选），如 A320"},
+                "registration": {"type": "string", "description": "注册号（可选），如 B-1234"},
             },
             "required": ["date", "flight", "from_ap", "to_ap"],
         },
@@ -108,6 +110,7 @@ TOOLS = [
                 "seat": {"type": "string", "description": "新座位（可选）"},
                 "note": {"type": "string", "description": "新备注（可选）"},
                 "aircraft": {"type": "string", "description": "新机型（可选）"},
+                "registration": {"type": "string", "description": "新注册号（可选）"},
             },
             "required": ["id"],
         },
@@ -144,6 +147,8 @@ def tool_add_flight(args):
         to_ap=args["to_ap"].strip().upper(),
         seat=(args.get("seat") or "").strip(),
         note=(args.get("note") or "").strip(),
+        aircraft=(args.get("aircraft") or "").strip(),
+        registration=(args.get("registration") or "").strip().upper(),
     )
     return {"ok": True, "id": fid,
             "added": {"date": args["date"], "flight": args["flight"].upper(),
@@ -164,8 +169,6 @@ def tool_extract_text(args):
     if not text:
         raise ValueError("text 不能为空")
     rows = extractor.extract(text)
-    if not rows:
-        rows = extractor.extract_ai(text)  # AI 兜底接口（当前未接入）
     return {"count": len(rows), "rows": rows,
             "hint": "这是解析结果，未写入档案；确认无误后可用 add_flight 入库"}
 
@@ -175,8 +178,6 @@ def tool_add_flights_from_text(args):
     if not text:
         raise ValueError("text 不能为空")
     rows = extractor.extract(text)
-    if not rows:
-        rows = extractor.extract_ai(text)
     added, skipped = [], []
     for r in rows:
         # 关键字段不完整的行跳过，避免脏数据进档案

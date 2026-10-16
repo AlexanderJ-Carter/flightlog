@@ -2,92 +2,200 @@
 
 Base URL：`http://localhost:8321`（Docker 启动后）
 
-所有接口均为 JSON。错误时返回 `{"detail": "..."}` + 4xx/5xx 状态码。
+所有接口均为 JSON。错误时返回 `{"detail": "..."}` 或结构化 detail + 4xx/5xx。
 
 ## 航班记录
 
 ### `GET /api/flights`
-全部航班，新→旧排序。
+
+查询参数（均可选）：
+
+| 参数 | 说明 |
+|------|------|
+| `year` | 四位年份 |
+| `airline` | 航司二字码前缀（如 MU） |
+| `airport` | 机场三字码（出发或到达） |
+| `q` | 自由文本（航班号/机场/备注/机型） |
+| `limit` / `offset` | 分页 |
 
 ```json
 {"flights": [
   {"id": 1, "date": "2026-05-01", "flight": "MU5101",
-   "from": "PEK", "to": "SHA", "seat": "32A", "note": "出差"}
+   "from": "PEK", "to": "SHA", "seat": "32A", "note": "出差",
+   "aircraft": "A320", "registration": "B-1234"}
 ]}
 ```
 
 ### `POST /api/flights`
+
+成功 `201`：
+
 ```json
-// 请求
 {"date": "2026-05-01", "flight": "MU5101", "from": "PEK", "to": "SHA",
- "seat": "32A", "note": "出差"}
-// seat/note 可省略
-// 响应
+ "seat": "32A", "note": "出差", "aircraft": "A320", "registration": "B-1234"}
+```
+
+```json
 {"ok": true, "id": 3}
 ```
 
+同日同航班同航线已存在时返回 `409`：
+
+```json
+{"detail": {"message": "已存在相同航班记录", "id": 3}}
+```
+
+### `PUT /api/flights/{id}`
+
+部分更新：只传要改的字段。响应 `{"ok": true, "id": n}`。冲突同样 `409`。
+
 ### `DELETE /api/flights/{id}`
+
 幂等。响应 `{"ok": true}`。
 
 ## 统计
 
 ### `GET /api/stats`
+
 ```json
 {"total": 28, "km": 62653.2, "airports": 15,
  "airlines": {"MU": 12, "CA": 9},
- "years": {"2024": 10, "2025": 12, "2026": 6},
- "routes": {"PEK-SHA": 5, "PEK-CTU": 3}}
+ "years": {"2024": 10, "2025": 12},
+ "routes": {"PEK-SHA": 5},
+ "aircraft": {"A320": 8, "B737": 5},
+ "aircraft_types": 2}
 ```
-`km` 按 haversine 球面距离累计。
+
+`km` 按 haversine 大圆距离累计（未收录机场记 0）。
 
 ## 地图
 
 ### `GET /api/map`
+
 ```json
 {
-  "airports": [["PEK", "北京首都", 40.08, 116.58], ...],
+  "airports": [["PEK", "北京首都", 40.08, 116.58]],
   "routes": [
-    {"path": [[40.08,116.58], [35.6,119.0], [31.19,121.33]], "weight": 2},
-    ...
+    {"path": [[40.08,116.58], [35.6,119.0], [31.19,121.33]], "weight": 2}
   ]
 }
 ```
-`path` 为 3 点弧线（起点/中点/终点），`weight` 为该航线飞行次数（正反向合并）。
+
+`path` 为 3 点弧线；`weight` 为次数（正反向合并）。
+
+## 机场
+
+### `GET /api/airports?q=&limit=20`
+
+按三字码或中文名模糊搜索，供录入自动完成。
+
+```json
+{"airports": [{"code": "PEK", "name": "北京首都", "lat": 40.08, "lon": 116.58, "known": true}]}
+```
+
+### `GET /api/airports/{code}`
+
+`catalog.db` 地理层详情（主档 / 跑道 / 频率 / 导航台 / 国家地区名）。`code` 为 IATA 或 ICAO。
+
+### `GET /api/catalog`
+
+参考库分层行数与各数据源导入记录。
+
+### `GET /api/weather/{code}`
+
+NOAA 公开机场信息 + 最近 METAR（失败时对应字段为空）。
+
+### `POST /api/fleet/catalog`
+
+后台刷新 `catalog.db`（地理 + 登记 + 词典）。
+
+### `POST /api/import/file`
+
+多源文件导入（multipart）。字段：`file`、`source`（`auto|json|openflights|fr24|flighty|tripit`）、`replace`、`dry_run`。重复航班会补全空字段（`updated`）。
+
+### `GET /api/countries`
+
+访问国家统计（机场所属国家聚合）。
+
+### `GET|PUT|DELETE /api/flights/{id}/track`
+
+可选航迹：`points` 为 `[[lat,lon],...]`。
 
 ## 智能能力
 
-### `POST /api/lookup` — 航班号查询
-```json
-// 请求
-{"flight": "MU5101", "date": "2026-05-01"}
-// 命中
-{"found": true, "flight": "MU5101", "date": "...", "from": "SHA",
- "to": "PEK", "dep_time": "...", "arr_time": "...", "airline": "东方航空"}
-// 未命中（含未配置 key）
-{"found": false, "reason": "未配置API key"}
-```
-数据源：AviationStack（免费注册 https://aviationstack.com，key 放 `server/api_keys.json` 或 `server/data/api_keys.json`）。免费档覆盖近期航班。
+### `POST /api/lookup`
 
-### `POST /api/extract` — 订票短信解析
 ```json
-// 请求
+{"flight": "CA1902", "date": "2026-05-01"}
+```
+
+也支持纯数字：`{"flight":"1902","date":"..."}` → 返回 `candidates`（零配置为 adsbdb 真实命中的典型航线；配置 AviationStack 后优先实时结果，可含 `aircraft`）。
+
+命中示例：
+
+```json
+{"found": true, "flight": "CA1902", "from": "URC", "to": "PEK",
+ "from_name": "乌鲁木齐地窝堡", "to_name": "北京首都",
+ "airline": "Air China", "aircraft": "A333", "registration": "B-1234",
+ "source": "adsbdb", "note": "典型航线（非当日动态时刻）"}
+```
+
+`aircraft` / `registration` / `photo` 仅在该呼号当前有 ADS-B 空中目标时可能出现。
+
+零配置走免费航线库 + OurAirports。可选密钥经页面「智能配置」写入 `data/api_keys.json`（勿放进 git）。
+
+### `POST /api/extract`
+
+```json
 {"text": "您已出票 MU5101 2026-05-01 北京首都→上海虹桥 座位32A"}
-// 响应
+```
+
+```json
 {"rows": [
   {"date": "2026-05-01", "flight": "MU5101", "from": "PEK",
-   "to": "SHA", "seat": "32A", "note": ""}
+   "to": "SHA", "seat": "32A", "note": "", "aircraft": ""}
 ]}
 ```
-支持：城市名/机场名→三字码（"上海浦东"→PVG）、多机场城市、"北京-香港"连接式、数字前缀航班号（9C8899）、多段行程一次解析。识别不到时返回空 `rows`。
 
-## 错误码约定
+## 备份
+
+### `GET /api/export?format=json|csv&year=`
+
+- `json`：备份（可喂回 import）；传 `year` 时只导出该年
+- `csv`：Excel 友好（含 BOM）；同样支持 `year`
+
+### `POST /api/import`
+
+```json
+{"rows": [...], "replace": false}
+```
+
+`flights` 与 `rows` 二选一。`replace: true` 先清空再写入。重复行计入 `skipped`。
+
+## 错误码
 
 | 状态 | 场景 |
 |------|------|
-| 422 | 请求体字段缺失/类型错误 |
-| 500 | 数据库异常（查看容器日志） |
+| 400 | 日期格式错误、无导入数据等 |
+| 404 | 编辑不存在的 id |
+| 409 | 重复航班 |
+| 422 | 请求体校验失败 |
 
-## MCP（AI 客户端接入）
+## 配置与健康
 
-详见 `docs/MCP.md` —— 在 Claude Desktop / 飞象等 MCP 客户端中直接对话录入航班：
-> "帮我把这条短信记进飞行档案：……"
+### `GET /api/health`
+
+```json
+{"ok": true, "version": "2.0", "providers": ["adsbdb"],
+ "live_lookup": false, "airports": 8798, "catalog": {"counts": {}}}
+```
+
+`catalog` 为参考库分层统计，详见 `GET /api/catalog`。
+
+### `GET /api/config` / `PUT /api/config/keys`
+
+配置状态与密钥写入（密钥不回传明文）。详见使用手册「智能配置」。
+
+## MCP
+
+见 [MCP.md](MCP.md)。

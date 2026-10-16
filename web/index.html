@@ -4,605 +4,299 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>FlightLog · 我的飞行档案</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --bg:#080b14;--bg2:#0d1220;--card:rgba(255,255,255,.03);--card-solid:#111828;
-  --border:rgba(255,255,255,.08);--border-hi:rgba(0,212,255,.35);
-  --accent:#0090b8;--accent2:#6a4fe0;--text:#eef2fa;--text2:#94a0b8;--text3:#5a6478;
-  --green:#00e676;--gold:#ffd54f;--red:#ff5d6c;
-  --shadow:0 8px 32px rgba(0,0,0,.4);
-  --radius:16px;
-}
-:root[data-theme="dark"]{
-  --accent:#00d4ff;--accent2:#7c5cfc;
-}
-:root[data-theme="light"]{
-  --bg:#f5f7fb;--bg2:#eef1f7;--card:rgba(255,255,255,.72);--card-solid:#ffffff;
-  --border:rgba(15,30,60,.1);--border-hi:rgba(0,144,184,.45);
-  --accent:#0080ad;--accent2:#5a3fd6;--text:#1a2436;--text2:#5a6478;--text3:#94a0b8;
-  --green:#00a854;--gold:#c99700;--red:#e03e4e;
-  --shadow:0 8px 28px rgba(30,50,90,.12);
-}
-:root[data-theme="light"] body::before{
-  background:radial-gradient(ellipse 60% 40% at 20% 0%,rgba(0,144,184,.06),transparent),
-             radial-gradient(ellipse 50% 40% at 90% 20%,rgba(106,79,224,.05),transparent)
-}
-:root[data-theme="light"] .stat .num{
-  background:linear-gradient(120deg,#1a2436,#3d5a8f);-webkit-background-clip:text
-}
-:root[data-theme="light"] .tab.active{background:var(--card-solid)}
-:root[data-theme="light"] .toast{background:#fff}
-body{background:var(--bg);color:var(--text);
-  font-family:-apple-system,'PingFang SC','Inter','Helvetica Neue',sans-serif;
-  font-feature-settings:'tnum';overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-  background:radial-gradient(ellipse 60% 40% at 20% 0%,rgba(0,212,255,.07),transparent),
-             radial-gradient(ellipse 50% 40% at 90% 20%,rgba(124,92,252,.06),transparent)}
-button{cursor:pointer;font-family:inherit;border:none;background:none;color:inherit}
-input,textarea{font-family:inherit;outline:none;color:var(--text)}
-::-webkit-scrollbar{width:8px}::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
-::selection{background:rgba(0,212,255,.25)}
-
-/* ===== 顶栏 ===== */
-.topbar{position:sticky;top:0;z-index:2000;display:flex;align-items:center;gap:1rem;
-  padding:.7rem 1.5rem;background:rgba(8,11,20,.8);backdrop-filter:blur(16px);
-  border-bottom:1px solid var(--border)}
-.brand{display:flex;align-items:center;gap:.6rem;font-weight:800;font-size:1.05rem;
-  background:linear-gradient(120deg,var(--accent),var(--accent2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.brand .plane{font-size:1.3rem;-webkit-text-fill-color:initial}
-.api-ctl{display:flex;align-items:center;gap:.6rem;margin-left:auto}
-.api-ctl input{width:220px;background:var(--card);border:1px solid var(--border);
-  border-radius:10px;padding:.45rem .8rem;font-size:.8rem;transition:border .2s}
-.api-ctl input:focus{border-color:var(--border-hi)}
-.pill{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .75rem;
-  border-radius:99px;font-size:.72rem;font-weight:600;
-  background:var(--card);border:1px solid var(--border);color:var(--text2)}
-.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--text3);transition:.3s}
-.pill.on .dot{background:var(--green);box-shadow:0 0 8px var(--green)}
-.pill.off .dot{background:var(--red)}
-
-/* ===== 布局 ===== */
-.wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:2rem 1.5rem 4rem}
-.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;
-  margin-bottom:1.8rem;flex-wrap:wrap}
-.hero h1{font-size:2rem;font-weight:800;letter-spacing:-.02em}
-.hero p{color:var(--text2);font-size:.9rem;margin-top:.35rem}
-
-/* ===== 统计 ===== */
-.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.6rem}
-.stat{position:relative;overflow:hidden;padding:1.4rem 1.5rem;border-radius:var(--radius);
-  background:var(--card);border:1px solid var(--border);backdrop-filter:blur(8px);
-  transition:transform .25s,border-color .25s}
-.stat:hover{transform:translateY(-3px);border-color:var(--border-hi)}
-.stat::after{content:'';position:absolute;right:-30px;top:-30px;width:100px;height:100px;
-  border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,.14),transparent 70%)}
-.stat .num{font-size:2.1rem;font-weight:800;letter-spacing:-.02em;
-  background:linear-gradient(120deg,#fff,#9fc7ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.stat .num.g{background:linear-gradient(120deg,var(--green),#7ff5b0);-webkit-background-clip:text}
-.stat .num.y{background:linear-gradient(120deg,var(--gold),#ffe9a3);-webkit-background-clip:text}
-.stat .num.p{background:linear-gradient(120deg,var(--accent2),#b9a3ff);-webkit-background-clip:text}
-.ac-badge{display:inline-block;padding:.12rem .5rem;border-radius:6px;font-size:.74rem;font-weight:700;
-  background:rgba(255,145,0,.12);color:#ff9100;border:1px solid rgba(255,145,0,.25)}
-.stat .lbl{font-size:.75rem;color:var(--text2);margin-top:.3rem;font-weight:600}
-
-/* ===== 地图 ===== */
-.map-card{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);
-  background:var(--card-solid);box-shadow:var(--shadow);margin-bottom:1.6rem}
-.map-card header{display:flex;justify-content:space-between;align-items:center;
-  padding:.9rem 1.3rem;border-bottom:1px solid var(--border)}
-.map-card header h2{font-size:.95rem;font-weight:700}
-#map{height:440px;width:100%;background:#0a0e1a}
-.leaflet-popup-content-wrapper{background:#141c2e!important;color:var(--text)!important;
-  border:1px solid var(--border);border-radius:12px!important;box-shadow:var(--shadow)!important}
-.leaflet-popup-tip{background:#141c2e!important}
-
-/* ===== Tabs ===== */
-.tabs{display:flex;gap:.4rem;margin-bottom:0}
-.tab{padding:.7rem 1.4rem;font-size:.85rem;font-weight:600;color:var(--text2);
-  border:1px solid var(--border);border-bottom:none;border-radius:14px 14px 0 0;
-  background:var(--bg2);transition:.2s;position:relative;top:1px}
-.tab:hover{color:var(--text)}
-.tab.active{color:var(--accent);background:var(--card-solid);border-color:var(--border);
-  box-shadow:0 -4px 20px rgba(0,212,255,.08)}
-.panel{display:none;background:var(--card-solid);border:1px solid var(--border);
-  border-radius:0 var(--radius) var(--radius) var(--radius);padding:1.6rem;margin-bottom:1.6rem;
-  animation:fadeUp .3s ease}
-.panel.active{display:block}
-@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-
-/* ===== 表单 ===== */
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-.field{display:flex;flex-direction:column;gap:.35rem}
-.field label{font-size:.72rem;font-weight:600;color:var(--text2);letter-spacing:.02em}
-.field input,.field textarea{background:var(--bg);border:1px solid var(--border);
-  border-radius:10px;padding:.6rem .85rem;font-size:.88rem;transition:border .2s,box-shadow .2s}
-.field input:focus,.field textarea:focus{border-color:var(--accent);
-  box-shadow:0 0 0 3px rgba(0,212,255,.12)}
-.field textarea{resize:vertical;min-height:96px;line-height:1.5}
-.btn{display:inline-flex;align-items:center;gap:.45rem;padding:.62rem 1.5rem;
-  border-radius:10px;font-size:.88rem;font-weight:700;transition:.2s}
-.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;
-  box-shadow:0 4px 16px rgba(0,212,255,.25)}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(0,212,255,.35)}
-.btn-primary:active{transform:translateY(0)}
-.btn-sm{padding:.34rem .8rem;font-size:.76rem;border-radius:8px}
-.btn-danger{color:var(--red);border:1px solid rgba(255,93,108,.3);
-  background:rgba(255,93,108,.08)}
-.btn-danger:hover{background:rgba(255,93,108,.15)}
-
-/* ===== 结果卡片 ===== */
-.results{display:flex;flex-direction:column;gap:.7rem;margin-top:1.2rem}
-.result{display:flex;justify-content:space-between;align-items:center;gap:1rem;
-  padding:.95rem 1.2rem;border-radius:12px;background:var(--bg2);
-  border:1px solid var(--border);animation:fadeUp .25s ease}
-.result .info{flex:1;min-width:0}
-.result .info b{color:var(--accent);font-size:.95rem}
-.result .info .sub{color:var(--text2);font-size:.78rem;margin-top:.25rem;line-height:1.5}
-
-/* ===== 表格 ===== */
-.table-card{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);
-  background:var(--card-solid);margin-bottom:1.6rem}
-.table-card .th{display:flex;justify-content:space-between;align-items:center;
-  padding:1rem 1.3rem;border-bottom:1px solid var(--border)}
-.table-card .th h2{font-size:.95rem}
-table{width:100%;border-collapse:collapse}
-th{text-align:left;padding:.65rem 1.3rem;font-size:.7rem;font-weight:700;color:var(--text3);
-  text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border)}
-td{padding:.7rem 1.3rem;font-size:.86rem;border-bottom:1px solid rgba(255,255,255,.04)}
-tbody tr{transition:background .15s}
-tbody tr:hover{background:rgba(0,212,255,.03)}
-td .fl{color:var(--accent);font-weight:700}
-td .route{color:var(--text2)}
-td .muted{color:var(--text3)}
-.empty{padding:3.5rem 1rem;text-align:center;color:var(--text3);font-size:.88rem}
-.empty .icon{font-size:2.2rem;display:block;margin-bottom:.6rem;opacity:.6}
-
-/* ===== 图表 ===== */
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-.chart-card{padding:1.4rem;border-radius:var(--radius);border:1px solid var(--border);
-  background:var(--card-solid)}
-.chart-card h3{font-size:.88rem;margin-bottom:1.1rem;color:var(--text2)}
-.bars{display:flex;flex-direction:column;gap:.65rem}
-.brow{display:flex;align-items:center;gap:.7rem}
-.brow .bl{width:56px;text-align:right;font-size:.75rem;color:var(--text2);flex-shrink:0}
-.brow .bt{flex:1;height:20px;background:var(--bg);border-radius:5px;overflow:hidden}
-.brow .bf{height:100%;border-radius:5px;width:0;
-  background:linear-gradient(90deg,var(--accent),var(--accent2));
-  transition:width .7s cubic-bezier(.22,1,.36,1)}
-.brow .bf.alt{background:linear-gradient(90deg,var(--accent2),#ff6ec7)}
-.brow .bv{width:34px;font-size:.78rem;font-weight:700;text-align:right;flex-shrink:0}
-
-/* ===== Toast ===== */
-#toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);
-  padding:.8rem 1.6rem;border-radius:12px;font-size:.86rem;font-weight:600;
-  background:#141c2e;border:1px solid var(--accent);box-shadow:0 8px 30px rgba(0,212,255,.2);
-  opacity:0;pointer-events:none;transition:.3s;z-index:9999}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#toast.err{border-color:var(--red);box-shadow:0 8px 30px rgba(255,93,108,.2)}
-
-/* ===== 空态/loading ===== */
-.hint{padding:2.5rem 1rem;text-align:center;color:var(--text3);font-size:.85rem}
-.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--border);
-  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;
-  vertical-align:-3px;margin-right:.5rem}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-@media(max-width:900px){
-  .stats{grid-template-columns:repeat(2,1fr)}
-  .charts{grid-template-columns:1fr}
-  .api-ctl input{width:150px}
-}
-@media(max-width:600px){
-  .grid2{grid-template-columns:1fr}
-  .wrap{padding:1.2rem 1rem 3rem}
-  .hero h1{font-size:1.5rem}
-  .api-ctl{display:none}
-}
-</style>
+<link rel="stylesheet" href="/css/fonts.css"/>
+<link rel="stylesheet" href="/css/leaflet.css"/>
+<link rel="stylesheet" href="/css/app.css"/>
+<script src="/js/lib/leaflet.js"></script>
 </head>
 <body>
 
 <header class="topbar">
-  <div class="brand"><span class="plane">✈️</span> FlightLog</div>
-  <div class="api-ctl">
-    <input id="apiBase" spellcheck="false">
+  <div class="brand">
+    <span class="brand-mark">✈</span>
+    <span>FlightLog</span>
+  </div>
+  <nav class="nav-surfaces" aria-label="主表面">
+    <button type="button" data-surface="atlas" class="active">档案</button>
+    <button type="button" data-surface="logbook">明细</button>
+    <button type="button" data-surface="capture">录入</button>
+  </nav>
+  <div class="topbar-right">
+    <div class="api-advanced" id="apiAdvanced">
+      <input id="apiBase" spellcheck="false" title="API 地址">
+    </div>
+    <button type="button" class="pill btn-pill" id="btnApiToggle" title="API 地址">API</button>
+    <span class="pill" id="provPill" title="数据源">航线库</span>
     <span class="pill off" id="apiPill"><span class="dot"></span><span id="apiTxt">未连接</span></span>
-    <button class="pill" id="themeBtn" title="切换主题" style="cursor:pointer">🌗</button>
+    <button type="button" class="pill btn-pill" id="themeBtn" title="切换到浅色">浅色</button>
   </div>
 </header>
 
-<div class="wrap">
-  <div class="hero">
-    <div>
-      <h1>我的飞行档案</h1>
-      <p>每一段航程，都值得被记住</p>
+<main class="shell">
+
+  <!-- ===== Atlas ===== -->
+  <section class="surface active" id="surface-atlas">
+    <div class="atlas-head">
+      <div>
+        <h1>我的飞行档案</h1>
+        <p>每一段航程，都留在航迹上</p>
+      </div>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat-item"><span class="num" id="stTotal">–</span><span class="lbl">航班</span></div>
+      <div class="stat-item"><span class="num amber" id="stKm">–</span><span class="lbl">公里</span></div>
+      <div class="stat-item"><span class="num" id="stEarth">–</span><span class="lbl">绕地球</span></div>
+      <div class="stat-item"><span class="num accent" id="stAirports">–</span><span class="lbl">机场</span></div>
+      <div class="stat-item"><span class="num" id="stAircraft">–</span><span class="lbl">机型</span></div>
+    </div>
+
+    <div class="map-stage">
+      <div class="map-stage-bar">
+        <h2>航线地图</h2>
+        <label class="map-ref-toggle" title="叠加 OpenFlights 参考航线（与你去过的机场相关）">
+          <input type="checkbox" id="mapRefRoutes"> 参考航线
+        </label>
+        <span class="map-meta" id="mapMeta"></span>
+      </div>
+      <div id="map"></div>
+      <div class="map-empty" id="mapEmpty">
+        <div class="card">
+          <h3>画上第一条航迹</h3>
+          <p>录入航班后，机场与航线会出现在这里。</p>
+          <button type="button" class="btn btn-primary" id="btnGoCapture">去录入</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="charts-panel" id="chartsPanel">
+      <button type="button" class="charts-toggle" id="chartsToggle">
+        <span>统计详情</span>
+        <span class="chev">▾</span>
+      </button>
+      <div class="charts-body">
+        <div class="chart-block"><h3>年度趋势</h3><div class="bars" id="yearChart"><div class="hint">加载中…</div></div></div>
+        <div class="chart-block"><h3>航司排行</h3><div class="bars" id="airChart"><div class="hint">加载中…</div></div></div>
+        <div class="chart-block"><h3>机型排行</h3><div class="bars" id="acChart"><div class="hint">加载中…</div></div></div>
+        <div class="chart-block"><h3>舱位</h3><div class="bars" id="cabinChart"><div class="hint">加载中…</div></div></div>
+        <div class="chart-block"><h3>座位类型</h3><div class="bars" id="seatChart"><div class="hint">加载中…</div></div></div>
+        <div class="chart-block"><h3>大洲</h3><div class="bars" id="contChart"><div class="hint">加载中…</div></div></div>
+        <div class="chart-block"><h3>国家</h3><div class="bars" id="countryChart"><div class="hint">加载中…</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Logbook ===== -->
+  <section class="surface" id="surface-logbook">
+    <div class="panel-head">
+      <h2>航班明细</h2>
+      <p class="sub">搜索、筛选、备份与恢复</p>
+    </div>
+
+    <div class="toolbar">
+      <input id="flSearch" placeholder="搜索 航班号 / 机场 / 机型 / 备注…">
+      <select id="flYear"><option value="">全部年份</option></select>
+      <input id="flAirline" placeholder="航司码" maxlength="4" style="max-width:88px;text-transform:uppercase">
+      <input id="flAirport" placeholder="机场" maxlength="3" style="max-width:72px;text-transform:uppercase">
+      <button type="button" class="btn btn-sm btn-ghost" id="btnExportCsv">CSV</button>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnExportJson">JSON</button>
+      <select id="importSource" title="导入来源" style="max-width:10rem">
+        <option value="auto">自动识别</option>
+        <option value="json">FlightLog JSON</option>
+        <option value="openflights">OpenFlights CSV</option>
+        <option value="fr24">MyFR24 CSV</option>
+        <option value="flighty">Flighty CSV</option>
+        <option value="tripit">TripIt ICS</option>
+      </select>
+      <label class="btn btn-sm btn-ghost" style="cursor:pointer">导入
+        <input type="file" id="importFile" accept=".json,.csv,.ics,text/csv,text/calendar,application/json" style="display:none">
+      </label>
+      <span class="cnt-info" id="cntInfo"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>日期</th><th>航班</th><th>航线</th><th>机型</th><th>注册号</th><th>座位</th><th>备注</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="8" class="hint"><span class="spin"></span>加载中…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== Capture ===== -->
+  <section class="surface" id="surface-capture">
+    <div class="panel-head">
+      <h2>录入航程</h2>
+      <p class="sub">手动填写、航班号查询，或粘贴订票短信</p>
+    </div>
+
+    <nav class="tabs">
+      <button type="button" class="tab active" data-tab="manual">手动录入</button>
+      <button type="button" class="tab" data-tab="lookup">航班号查询</button>
+      <button type="button" class="tab" data-tab="import">短信导入</button>
+      <button type="button" class="tab" data-tab="smart">智能配置</button>
+    </nav>
+
+    <section class="tab-panel active" id="panel-manual">
+      <div class="grid2">
+        <div class="field"><label>日期 *</label><input type="date" id="mDate"></div>
+        <div class="field"><label>航班号 *</label><input id="mFlight" placeholder="MU5101" style="text-transform:uppercase"></div>
+        <div class="field">
+          <label>出发机场 *</label>
+          <input id="mFrom" placeholder="PEK" style="text-transform:uppercase" maxlength="3" list="airportList">
+          <span class="hint-warn" id="mFromHint"></span>
+        </div>
+        <div class="field">
+          <label>到达机场 *</label>
+          <input id="mTo" placeholder="SHA" style="text-transform:uppercase" maxlength="3" list="airportList">
+          <span class="hint-warn" id="mToHint"></span>
+        </div>
+        <div class="field"><label>座位</label><input id="mSeat" placeholder="32A"></div>
+        <div class="field"><label>座位类型</label>
+          <select id="mSeatType">
+            <option value="">自动</option>
+            <option value="window">靠窗</option>
+            <option value="aisle">过道</option>
+            <option value="middle">中间</option>
+          </select>
+        </div>
+        <div class="field"><label>舱位</label>
+          <select id="mCabin">
+            <option value="">未填</option>
+            <option value="economy">经济舱</option>
+            <option value="economy+">超级经济舱</option>
+            <option value="business">公务舱</option>
+            <option value="first">头等舱</option>
+          </select>
+        </div>
+        <div class="field"><label>事由</label>
+          <select id="mReason">
+            <option value="">未填</option>
+            <option value="leisure">休闲</option>
+            <option value="business">公务</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+        <div class="field"><label>起飞</label><input id="mDepTime" type="time"></div>
+        <div class="field"><label>到达</label><input id="mArrTime" type="time"></div>
+        <div class="field"><label>出发航站楼</label><input id="mDepTerm" placeholder="T2"></div>
+        <div class="field"><label>到达航站楼</label><input id="mArrTerm" placeholder="T1"></div>
+        <div class="field"><label>出发登机口</label><input id="mDepGate" placeholder="C12"></div>
+        <div class="field"><label>到达登机口</label><input id="mArrGate" placeholder="B5"></div>
+        <div class="field"><label>行程</label><input id="mTrip" placeholder="春节返乡"></div>
+        <div class="field"><label>机型</label><input id="mAircraft" placeholder="A350 / 77W / C919"></div>
+        <div class="field"><label>注册号</label><input id="mReg" placeholder="B-1234" style="text-transform:uppercase"></div>
+        <div class="field" style="grid-column:1/-1"><label>备注</label><input id="mNote" placeholder="靠窗，风景好"></div>
+      </div>
+      <datalist id="airportList"></datalist>
+      <div style="margin-top:1.2rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+        <button type="button" class="btn btn-primary" id="mSubmit">录入档案</button>
+        <button type="button" class="btn btn-ghost" id="mCancel" style="display:none">取消编辑</button>
+        <span id="mHint" style="font-size:.75rem;color:var(--text3)"></span>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="panel-lookup">
+      <div class="grid2">
+        <div class="field"><label>航班号 *</label><input id="lkFlight" placeholder="CA1902 或仅 1902" style="text-transform:uppercase"></div>
+        <div class="field"><label>日期 *</label><input type="date" id="lkDate"></div>
+      </div>
+      <div style="margin-top:1.2rem">
+        <button type="button" class="btn btn-primary" id="btnLookup">查询航班</button>
+      </div>
+      <div class="results" id="lkResult"></div>
+    </section>
+
+    <section class="tab-panel" id="panel-import">
+      <div class="field">
+        <label>粘贴订票短信 / 行程文本 / 邮件</label>
+        <textarea id="imText" placeholder="例：您已出票 MU5101 2026-05-01 北京首都T2 → 上海虹桥T2 座位32A，祝旅途愉快。&#10;支持多段行程；解析后可改再入库。配置 LLM 后正则失败会走 AI。"></textarea>
+      </div>
+      <div style="margin-top:1.2rem">
+        <button type="button" class="btn btn-primary" id="btnExtract">解析文本</button>
+      </div>
+      <div class="results" id="imResult"></div>
+    </section>
+
+    <section class="tab-panel" id="panel-smart">
+      <p class="sub" style="margin-top:0">默认已启用免费航线库 adsbdb（零配置）。下列密钥可选，只存在本机 <code>data/api_keys.json</code>。</p>
+      <div id="smartStatus" class="stat-strip" style="margin-bottom:1rem"></div>
+
+      <h3 class="smart-section-title">飞友数据（自动更新）</h3>
+      <p class="sub" style="margin-top:0">合法公开源：OpenSky / adsb.fi / OpenFlights。定时采集天上的呼号与机尾，并提供参考航线。</p>
+      <div id="fleetStatus" class="stat-strip" style="margin-bottom:.8rem"></div>
+      <div class="grid2" style="margin-bottom:1rem">
+        <div class="field">
+          <label>自动采集</label>
+          <select id="fleetAuto">
+            <option value="1">开启</option>
+            <option value="0">关闭</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>间隔（小时）</label>
+          <input id="fleetInterval" type="number" min="0.5" max="168" step="0.5" value="6">
+        </div>
+      </div>
+      <div style="margin-bottom:.5rem;display:flex;gap:.6rem;flex-wrap:wrap">
+        <button type="button" class="btn btn-primary" id="btnFleetSave">保存采集设置</button>
+        <button type="button" class="btn btn-ghost" id="btnFleetHarvest">立即采集一轮</button>
+      </div>
+      <p class="sub" id="fleetHint" style="margin-bottom:1.4rem">—</p>
+
+      <div class="grid2">
+        <div class="field" style="grid-column:1/-1">
+          <label>AviationStack key（可选：当日时刻 + 机型）</label>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <input id="cfgAviation" type="password" autocomplete="off" placeholder="粘贴 access_key" style="flex:1">
+            <button type="button" class="btn btn-sm btn-ghost" id="btnClearAviation">清除</button>
+          </div>
+          <span class="hint-warn" id="cfgAviationHint">免费档约 100 次/月：https://aviationstack.com/signup/free</span>
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label>LLM key（可选，OpenAI 兼容：纯数字消歧 / 短信 AI）</label>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <input id="cfgLlm" type="password" autocomplete="off" placeholder="sk-… 或其它兼容 key" style="flex:1">
+            <button type="button" class="btn btn-sm btn-ghost" id="btnClearLlm">清除</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>LLM Base URL</label>
+          <input id="cfgLlmBase" placeholder="https://api.openai.com/v1">
+        </div>
+        <div class="field">
+          <label>LLM Model</label>
+          <input id="cfgLlmModel" placeholder="gpt-4o-mini">
+        </div>
+      </div>
+      <div style="margin-top:1.2rem;display:flex;gap:.6rem;flex-wrap:wrap">
+        <button type="button" class="btn btn-primary" id="btnSaveKeys">保存配置</button>
+        <button type="button" class="btn btn-ghost" id="btnRefreshCfg">刷新状态</button>
+      </div>
+    </section>
+  </section>
+
+</main>
+
+<div class="import-dialog" id="importDialog" role="dialog" aria-modal="true">
+  <div class="box">
+    <h3>导入航班</h3>
+    <p id="importDialogMsg">选择追加到现有档案，或清空后覆盖写入。</p>
+    <div class="actions">
+      <button type="button" class="btn btn-primary" id="importAppend">追加</button>
+      <button type="button" class="btn btn-danger" id="importReplace">覆盖</button>
+      <button type="button" class="btn btn-ghost" id="importCancel">取消</button>
     </div>
   </div>
-
-  <section class="stats">
-    <div class="stat"><div class="num" id="stTotal">–</div><div class="lbl">总航班</div></div>
-    <div class="stat"><div class="num g" id="stKm">–</div><div class="lbl">总里程（公里）</div></div>
-    <div class="stat"><div class="num y" id="stEarth">–</div><div class="lbl">绕地球（圈）</div></div>
-    <div class="stat"><div class="num p" id="stAirports">–</div><div class="lbl">去过机场</div></div>
-    <div class="stat"><div class="num" id="stAircraft" style="background:linear-gradient(120deg,#ff9100,#ffc46b);-webkit-background-clip:text">–</div><div class="lbl">坐过机型</div></div>
-  </section>
-
-  <section class="map-card">
-    <header><h2>航线地图</h2><span style="font-size:.78rem;color:var(--text3)" id="mapInfo"></span></header>
-    <div id="map"></div>
-  </section>
-
-  <nav class="tabs">
-    <button class="tab active" data-tab="manual">✏️ 手动录入</button>
-    <button class="tab" data-tab="lookup">🔎 航班号查询</button>
-    <button class="tab" data-tab="import">💬 短信导入</button>
-  </nav>
-
-  <section class="panel active" id="panel-manual">
-    <div class="grid2">
-      <div class="field"><label>日期 *</label><input type="date" id="mDate"></div>
-      <div class="field"><label>航班号 *</label><input id="mFlight" placeholder="MU5101" style="text-transform:uppercase"></div>
-      <div class="field"><label>出发机场 *</label><input id="mFrom" placeholder="PEK" style="text-transform:uppercase" maxlength="3"></div>
-      <div class="field"><label>到达机场 *</label><input id="mTo" placeholder="SHA" style="text-transform:uppercase" maxlength="3"></div>
-      <div class="field"><label>座位</label><input id="mSeat" placeholder="32A"></div>
-      <div class="field"><label>机型</label><input id="mAircraft" placeholder="A350 / 77W / C919"></div>
-      <div class="field"><label>备注</label><input id="mNote" placeholder="靠窗，风景好"></div>
-    </div>
-    <div style="margin-top:1.2rem;display:flex;gap:.6rem;align-items:center">
-      <button class="btn btn-primary" id="mSubmit" onclick="submitManual()">✈️ 录入档案</button>
-      <button class="btn" id="mCancel" style="display:none" onclick="cancelEdit()">取消编辑</button>
-      <span id="mHint" style="font-size:.75rem;color:var(--text3)"></span>
-    </div>
-  </section>
-
-  <section class="panel" id="panel-lookup">
-    <div class="grid2">
-      <div class="field"><label>航班号 *</label><input id="lkFlight" placeholder="MU5101" style="text-transform:uppercase"></div>
-      <div class="field"><label>日期 *</label><input type="date" id="lkDate"></div>
-    </div>
-    <div style="margin-top:1.2rem">
-      <button class="btn btn-primary" onclick="doLookup()">🔎 查询航班</button>
-    </div>
-    <div class="results" id="lkResult"></div>
-  </section>
-
-  <section class="panel" id="panel-import">
-    <div class="field">
-      <label>粘贴订票短信 / 行程文本 / 邮件</label>
-      <textarea id="imText" placeholder="例：您已出票 MU5101 2026-05-01 北京首都T2 → 上海虹桥T2 座位32A，祝旅途愉快。&#10;支持多段行程一次粘贴，逐条解析。"></textarea>
-    </div>
-    <div style="margin-top:1.2rem">
-      <button class="btn btn-primary" onclick="doExtract()">💬 解析文本</button>
-    </div>
-    <div class="results" id="imResult"></div>
-  </section>
-
-  <section class="table-card">
-    <div class="th" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
-      <h2>航班明细</h2>
-      <input id="flSearch" placeholder="搜索 航班号/机场/机型/备注…" oninput="renderTable()"
-        style="flex:1;min-width:160px;max-width:280px;background:var(--card);border:1px solid var(--border);
-               border-radius:10px;padding:.4rem .8rem;font-size:.78rem">
-      <button class="btn btn-sm" onclick="exportCSV()" title="导出 CSV，可用 Excel 打开">⬇️ CSV</button>
-      <label class="btn btn-sm" style="cursor:pointer" title="从 JSON 备份恢复">⬆️ 恢复备份
-        <input type="file" accept=".json,application/json" style="display:none" onchange="importJSON(this)">
-      </label>
-      <span style="font-size:.78rem;color:var(--text3)" id="cntInfo"></span>
-    </div>
-    <table>
-      <thead><tr><th>日期</th><th>航班</th><th>航线</th><th>机型</th><th>座位</th><th>备注</th><th></th></tr></thead>
-      <tbody id="tbody"><tr><td colspan="7" class="hint"><span class="spin"></span>加载中…</td></tr></tbody>
-    </table>
-  </section>
-
-  <section class="charts">
-    <div class="chart-card"><h3>年度航班趋势</h3><div class="bars" id="yearChart"><div class="hint">加载中…</div></div></div>
-    <div class="chart-card"><h3>航司排行</h3><div class="bars" id="airChart"><div class="hint">加载中…</div></div></div>
-    <div class="chart-card"><h3>🛩️ 机型排行（飞友专区）</h3><div class="bars" id="acChart"><div class="hint">加载中…</div></div></div>
-  </section>
 </div>
 
 <div id="toast"></div>
 
-<script>
-// ===== API 地址：托管环境下自动同源，本地文件打开时用默认端口 =====
-(function(){
-  const el = document.getElementById('apiBase');
-  el.value = localStorage.getItem('fl-api')
-    || (location.protocol.startsWith('http') ? location.origin : 'http://localhost:8321');
-  el.addEventListener('change', ()=>localStorage.setItem('fl-api', el.value));
-})();
-
-// ===== 主题（跟随系统 + 手动切换 + localStorage 记忆）=====
-(function(){
-  const saved = localStorage.getItem('fl-theme');
-  const sys = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  document.documentElement.dataset.theme = saved || sys;
-  matchMedia('(prefers-color-scheme: light)').addEventListener('change', e=>{
-    if(!localStorage.getItem('fl-theme'))
-      document.documentElement.dataset.theme = e.matches ? 'light' : 'dark';
-  });
-})();
-document.getElementById('themeBtn').onclick = function(){
-  const cur = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-  document.documentElement.dataset.theme = cur;
-  localStorage.setItem('fl-theme', cur);
-  this.textContent = cur === 'light' ? '☀️' : '🌙';
-};
-document.getElementById('themeBtn').textContent =
-  document.documentElement.dataset.theme === 'light' ? '☀️' : '🌙';
-
-let map=null, layers=[];
-
-function api(path, opts={}) {
-  const base = document.getElementById('apiBase').value.replace(/\/+$/,'');
-  return fetch(base + path, {...opts, headers:{'Content-Type':'application/json', ...opts.headers}});
-}
-function setStatus(on){
-  document.getElementById('apiPill').className = 'pill ' + (on?'on':'off');
-  document.getElementById('apiTxt').textContent = on?'已连接':'未连接';
-}
-function toast(msg, err=false){
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.className='show'+(err?' err':'');
-  clearTimeout(t._h); t._h=setTimeout(()=>t.className='',2600);
-}
-const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-async function loadAll(){ await Promise.all([loadStats(), loadMap(), loadFlights()]); }
-
-async function loadStats(){
-  try{
-    const r = await api('/api/stats'); if(!r.ok) throw 0;
-    const d = await r.json(); setStatus(true);
-    document.getElementById('stTotal').textContent = d.total ?? '–';
-    document.getElementById('stKm').textContent = d.km ? Math.round(d.km).toLocaleString() : '–';
-    document.getElementById('stEarth').textContent = d.km ? (d.km/40075).toFixed(2) : '–';
-    document.getElementById('stAirports').textContent = d.airports ?? '–';
-    document.getElementById('stAircraft').textContent = d.aircraft_types ?? '–';
-    bars('yearChart', d.years||{}, false);
-    bars('airChart', d.airlines||{}, true);
-    bars('acChart', d.aircraft||{}, true);
-  }catch(e){ setStatus(false); toast('无法连接后端，请先启动：docker compose up -d', true); }
-}
-async function loadMap(){
-  try{
-    const r = await api('/api/map'); if(!r.ok) throw 0;
-    renderMap((await r.json()).airports||[], (await r.json()).routes||[]);
-  }catch(e){}
-}
-async function loadFlights(){
-  try{
-    const r = await api('/api/flights'); if(!r.ok) throw 0;
-    window._flights = (await r.json()).flights||[];
-    renderTable();
-  }catch(e){
-    document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="7" class="empty"><span class="icon">🛫</span>暂无航班记录<br><small>后端启动后自动加载，或先用上方录入</small></td></tr>';
-  }
-}
-function renderTable(){
-  const kw=(document.getElementById('flSearch').value||'').trim().toUpperCase();
-  const all=window._flights||[];
-  table(kw? all.filter(f=>[f.flight,f.from,f.to,f.aircraft,f.note,f.date].join(' ').toUpperCase().includes(kw)) : all);
-}
-
-function initMap(){
-  map = L.map('map',{center:[34,108],zoom:4,minZoom:2,maxZoom:12,attributionControl:false,worldCopyJump:true});
-  window._tiles = L.tileLayer(tileUrl(),{subdomains:'abcd',maxZoom:19}).addTo(map);
-  document.getElementById('themeBtn').addEventListener('click',()=>{
-    map.removeLayer(window._tiles);
-    window._tiles = L.tileLayer(tileUrl(),{subdomains:'abcd',maxZoom:19}).addTo(map);
-  });
-  function tileUrl(){
-    return document.documentElement.dataset.theme === 'light'
-      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-  }
-}
-function renderMap(airports, routes){
-  layers.forEach(l=>map.removeLayer(l)); layers=[];
-  airports.forEach(a=>{
-    const m=L.circleMarker([a[2],a[3]],{radius:5,color:'#00d4ff',weight:1.5,fillColor:'#00d4ff',fillOpacity:.85})
-      .addTo(map).bindPopup('<b>'+esc(a[0])+'</b> '+esc(a[1]));
-    layers.push(m);
-  });
-  routes.forEach(r=>{
-    let coords, w=1;
-    if(Array.isArray(r) && r.length===2 && typeof r[1]==='number'){ coords=r[0]; w=r[1]; }
-    else if(Array.isArray(r) && Array.isArray(r[0]) && typeof r[0][0]==='number'){ coords=r; }
-    if(!coords || coords.length<2) return;
-    layers.push(L.polyline(arc(coords),{color:w>1?'#7c5cfc':'#00d4ff',weight:Math.min(w,3),
-      opacity:.35+Math.min(w*.15,.4),dashArray:'5 4'}).addTo(map));
-  });
-  if(airports.length){
-    map.fitBounds(airports.map(a=>[a[2],a[3]]).map(b=>[b[0]-2,b[1]-2]).concat(airports.map(a=>[a[2]+2,a[3]+2])),
-      {padding:[30,30]});
-  }
-  document.getElementById('mapInfo').textContent = airports.length+' 机场 · '+routes.length+' 航线';
-}
-function arc(c){
-  if(c.length>=3) return c;
-  const [a,b]=c, dLat=b[0]-a[0], dLon=b[1]-a[1];
-  const dist=Math.hypot(dLat,dLon)||1, off=dist*.15;
-  return [a,[(a[0]+b[0])/2+dLon/dist*off,(a[1]+b[1])/2-dLat/dist*off],b];
-}
-
-function table(flights){
-  const tb=document.getElementById('tbody');
-  document.getElementById('cntInfo').textContent = flights.length ? flights.length+' 条' : '';
-  if(!flights.length){
-    tb.innerHTML='<tr><td colspan="7" class="empty"><span class="icon">🛫</span>暂无航班记录<small><br>用上方任一方式录入你的第一段航程</small></td></tr>';
-    return;
-  }
-  tb.innerHTML = flights.map(f=>
-    '<tr><td>'+esc(f.date)+'</td><td class="fl">'+esc(f.flight)+'</td>'+
-    '<td class="route">'+esc(f.from)+' → '+esc(f.to)+'</td>'+
-    '<td>'+(f.aircraft?'<span class="ac-badge">'+esc(f.aircraft)+'</span>':'<span class="muted">–</span>')+'</td>'+
-    '<td>'+(esc(f.seat)||'<span class="muted">–</span>')+'</td>'+
-    '<td class="muted">'+esc(f.note)+'</td>'+
-    '<td style="white-space:nowrap"><button class="btn btn-sm" onclick="editFlight('+f.id+')">编辑</button> '+
-    '<button class="btn btn-danger btn-sm" onclick="del('+f.id+')">删除</button></td></tr>'
-  ).join('');
-}
-function editFlight(id){
-  const f=(window._flights||[]).find(x=>x.id===id); if(!f) return;
-  document.getElementById('mDate').value=f.date||'';
-  document.getElementById('mFlight').value=f.flight||'';
-  document.getElementById('mFrom').value=f.from||'';
-  document.getElementById('mTo').value=f.to||'';
-  document.getElementById('mSeat').value=f.seat||'';
-  document.getElementById('mAircraft').value=f.aircraft||'';
-  document.getElementById('mNote').value=f.note||'';
-  window._editingId=id;
-  document.getElementById('mSubmit').textContent='💾 保存修改';
-  document.getElementById('mCancel').style.display='';
-  document.getElementById('mHint').textContent='正在编辑记录 #'+id;
-  document.querySelector('.tab[data-tab="manual"]').click();
-  window.scrollTo({top:document.querySelector('#panel-manual').offsetTop-80, behavior:'smooth'});
-}
-function cancelEdit(){
-  window._editingId=null;
-  document.getElementById('mSubmit').textContent='✈️ 录入档案';
-  document.getElementById('mCancel').style.display='none';
-  document.getElementById('mHint').textContent='';
-  ['mDate','mFlight','mFrom','mTo','mSeat','mNote','mAircraft'].forEach(i=>document.getElementById(i).value='');
-}
-function exportCSV(){
-  const base=document.getElementById('apiBase').value.replace(/\/+$/,'');
-  window.open(base+'/api/export?format=csv');
-}
-async function importJSON(input){
-  const file=input.files&&input.files[0]; if(!file) return;
-  try{
-    const j=JSON.parse(await file.text());
-    const rows=j.flights||j.rows||(Array.isArray(j)?j:null);
-    if(!rows) throw 0;
-    const r=await api('/api/import',{method:'POST',body:JSON.stringify({rows})});
-    if(!r.ok) throw 0;
-    const res=await r.json();
-    toast('已恢复 '+res.added+' 条'+(res.skipped&&res.skipped.length?'，跳过 '+res.skipped.length+' 条无效数据':''));
-    loadAll();
-  }catch(e){ toast('导入失败：请确认是 flightlog 导出的 JSON 备份', true); }
-  input.value='';
-}
-function bars(id, obj, alt){
-  const el=document.getElementById(id);
-  const es=Object.entries(obj).sort((a,b)=>alt?b[1]-a[1]:a[0].localeCompare(b[0]));
-  if(!es.length){ el.innerHTML='<div class="hint">暂无数据</div>'; return; }
-  const mx=Math.max(...es.map(e=>e[1]));
-  el.innerHTML = es.map(([k,v])=>
-    '<div class="brow"><span class="bl">'+esc(k)+'</span>'+
-    '<div class="bt"><div class="bf'+(alt?' alt':'')+'" style="width:0"></div></div>'+
-    '<span class="bv">'+v+'</span></div>').join('');
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    el.querySelectorAll('.bf').forEach((f,i)=>f.style.width=(es[i][1]/mx*100)+'%');
-  }));
-}
-
-document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
-  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  t.classList.add('active');
-  document.getElementById('panel-'+t.dataset.tab).classList.add('active');
-}));
-
-function collect(ids){
-  const o={}; ids.forEach(i=>o[i]=document.getElementById(i).value.trim()); return o;
-}
-async function submitManual(){
-  const d=collect(['mDate','mFlight','mFrom','mTo','mSeat','mNote','mAircraft']);
-  if(!d.mDate||!d.mFlight||!d.mFrom||!d.mTo) return toast('请填写日期、航班号、出发、到达', true);
-  const body={date:d.mDate,flight:d.mFlight.toUpperCase(),from:d.mFrom.toUpperCase(),
-    to:d.mTo.toUpperCase(),seat:d.mSeat,note:d.mNote,aircraft:d.mAircraft};
-  if(window._editingId){                       // 编辑模式 → PUT 部分更新
-    const r=await api('/api/flights/'+window._editingId,{method:'PUT',body:JSON.stringify(body)});
-    if(!r.ok) return toast('保存失败，请检查后端服务', true);
-    toast('已更新 ✈️'); cancelEdit(); loadAll(); return;
-  }
-  const r=await api('/api/flights',{method:'POST',body:JSON.stringify(body)});
-  if(!r.ok) return toast('录入失败，请检查后端服务', true);
-  toast('已录入 ✈️');
-  ['mDate','mFlight','mFrom','mTo','mSeat','mNote','mAircraft'].forEach(i=>document.getElementById(i).value='');
-  loadAll();
-}
-
-async function doLookup(){
-  const f=document.getElementById('lkFlight').value.trim().toUpperCase();
-  const d=document.getElementById('lkDate').value;
-  if(!f||!d) return toast('请输入航班号和日期', true);
-  const el=document.getElementById('lkResult');
-  el.innerHTML='<div class="hint"><span class="spin"></span>查询中…</div>';
-  try{
-    const r=await api('/api/lookup',{method:'POST',body:JSON.stringify({flight:f,date:d})});
-    const j=await r.json();
-    if(j.found){
-      window._lk=j;
-      el.innerHTML='<div class="result"><div class="info"><b>'+esc(j.flight||f)+'</b> · '+esc(j.date||d)+
-        '<div class="sub">'+esc(j.from)+' → '+esc(j.to)+' · '+esc(j.airline||'')+
-        ' · '+esc(j.dep_time||'')+' ~ '+esc(j.arr_time||'')+' · '+esc(j.aircraft||'')+'</div></div>'+
-        '<button class="btn btn-primary btn-sm" onclick="saveLk()">存入档案</button></div>';
-    } else {
-      el.innerHTML='<div class="result"><div class="info" style="color:var(--text2)">未查到'+(j.reason?'：'+esc(j.reason):'')+
-        '<div class="sub">免费 API 通常只覆盖近期航班，历史航班可用「短信导入」或手动录入</div></div></div>';
-    }
-  }catch(e){ el.innerHTML='<div class="result"><div class="info" style="color:var(--red)">查询失败，请检查后端服务</div></div>'; }
-}
-async function saveLk(){
-  const d=window._lk; if(!d) return;
-  const r=await api('/api/flights',{method:'POST',body:JSON.stringify(
-    {date:d.date,flight:d.flight,from:d.from,to:d.to,seat:d.seat||'',note:d.airline||'',aircraft:d.aircraft||''})});
-  if(!r.ok) return toast('保存失败', true);
-  toast('已存入档案 ✈️'); document.getElementById('lkResult').innerHTML=''; loadAll();
-}
-
-async function doExtract(){
-  const text=document.getElementById('imText').value.trim();
-  if(!text) return toast('请粘贴文本', true);
-  const el=document.getElementById('imResult');
-  el.innerHTML='<div class="hint"><span class="spin"></span>解析中…</div>';
-  try{
-    const r=await api('/api/extract',{method:'POST',body:JSON.stringify({text})});
-    const j=await r.json();
-    if(!j.rows||!j.rows.length){
-      el.innerHTML='<div class="result"><div class="info" style="color:var(--text2)">未解析出航班信息<div class="sub">试试包含「航班号 + 日期 + 城市」的完整文本</div></div></div>';
-      return;
-    }
-    window._rows=j.rows;
-    el.innerHTML=j.rows.map((row,i)=>
-      '<div class="result"><label style="display:flex;align-items:center"><input type="checkbox" checked data-i="'+i+
-      '" style="accent-color:#00d4ff;width:16px;height:16px"></label>'+
-      '<div class="info"><b>'+esc(row.flight)+'</b> · '+esc(row.date)+
-      '<div class="sub">'+esc(row.from)+' → '+esc(row.to)+' · '+esc(row.seat||'–')+' · '+esc(row.note||'')+'</div></div></div>'
-    ).join('')+'<button class="btn btn-primary" onclick="batchImport()">📥 批量入库</button>';
-  }catch(e){ el.innerHTML='<div class="result"><div class="info" style="color:var(--red)">解析失败，请检查后端服务</div></div>'; }
-}
-async function batchImport(){
-  const rows=window._rows||[];
-  const sel=[...document.querySelectorAll('#imResult input[type=checkbox]:checked')].map(c=>+c.dataset.i);
-  let ok=0;
-  for(const i of sel){
-    const r=await api('/api/flights',{method:'POST',body:JSON.stringify(rows[i])});
-    if(r.ok) ok++;
-  }
-  toast('成功导入 '+ok+'/'+sel.length+' 条');
-  document.getElementById('imResult').innerHTML='';
-  document.getElementById('imText').value='';
-  loadAll();
-}
-async function del(id){
-  const r=await api('/api/flights/'+id,{method:'DELETE'});
-  if(!r.ok) return toast('删除失败', true);
-  toast('已删除'); loadAll();
-}
-
-document.getElementById('apiBase').addEventListener('change',loadAll);
-initMap(); loadAll();
-</script>
+<script type="module" src="/js/app.js?v=20261016"></script>
 </body>
 </html>
