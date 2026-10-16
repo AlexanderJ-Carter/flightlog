@@ -120,23 +120,28 @@ def init_db():
                        to_ap TEXT NOT NULL,
                        seat TEXT DEFAULT '',
                        note TEXT DEFAULT '',
+                       aircraft TEXT DEFAULT '',
                        created_at TEXT NOT NULL
                    )"""
             )
+            # 旧库迁移：无 aircraft 列则补上
+            cols = [r[1] for r in conn.execute("PRAGMA table_info(flights)")]
+            if "aircraft" not in cols:
+                conn.execute("ALTER TABLE flights ADD COLUMN aircraft TEXT DEFAULT ''")
 
 
 # ------------------------------------------------------------------
 # CRUD
 # ------------------------------------------------------------------
-def add_flight(date, flight, from_ap, to_ap, seat="", note=""):
+def add_flight(date, flight, from_ap, to_ap, seat="", note="", aircraft=""):
     """插入一条飞行记录，返回新 id。"""
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     with _lock:
         with _connect() as conn:
             cur = conn.execute(
-                "INSERT INTO flights(date, flight, from_ap, to_ap, seat, note, created_at) "
-                "VALUES(?,?,?,?,?,?,?)",
-                (date, flight, from_ap, to_ap, seat, note, now),
+                "INSERT INTO flights(date, flight, from_ap, to_ap, seat, note, aircraft, created_at) "
+                "VALUES(?,?,?,?,?,?,?,?)",
+                (date, flight, from_ap, to_ap, seat, note, aircraft, now),
             )
             return cur.lastrowid
 
@@ -152,14 +157,14 @@ def list_flights():
     """全部记录，新→旧（date DESC, id DESC），键名与前端契约一致。"""
     with _connect() as conn:
         rows = conn.execute(
-            "SELECT id, date, flight, from_ap, to_ap, seat, note "
+            "SELECT id, date, flight, from_ap, to_ap, seat, note, aircraft "
             "FROM flights ORDER BY date DESC, id DESC"
         ).fetchall()
     return [
         {
             "id": r["id"], "date": r["date"], "flight": r["flight"],
             "from": r["from_ap"], "to": r["to_ap"],
-            "seat": r["seat"], "note": r["note"],
+            "seat": r["seat"], "note": r["note"], "aircraft": r["aircraft"] or "",
         }
         for r in rows
     ]
@@ -198,6 +203,17 @@ def _gc_midpoint(code_a, code_b):
 # ------------------------------------------------------------------
 # 统计与地图
 # ------------------------------------------------------------------
+def aircraft_stats():
+    """机型统计（飞友专属）：机型→次数，总机型数。"""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT aircraft, COUNT(*) n FROM flights "
+            "WHERE aircraft != '' GROUP BY aircraft ORDER BY n DESC"
+        ).fetchall()
+    counts = {r["aircraft"]: r["n"] for r in rows}
+    return {"aircraft": counts, "aircraft_types": len(counts)}
+
+
 def stats():
     """GET /api/stats 的数据。"""
     with _connect() as conn:

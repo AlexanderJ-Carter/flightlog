@@ -42,6 +42,7 @@ class FlightIn(BaseModel):
     to: str
     seat: str = ""
     note: str = ""
+    aircraft: str = ""
     model_config = ConfigDict(populate_by_name=True)
 
 
@@ -71,6 +72,7 @@ def post_flight(body: FlightIn):
         to_ap=body.to.strip().upper(),
         seat=(body.seat or "").strip(),
         note=(body.note or "").strip(),
+        aircraft=(body.aircraft or "").strip(),
     )
     return {"ok": True, "id": fid}
 
@@ -83,7 +85,9 @@ def delete_flight(fid: int):
 
 @app.get("/api/stats")
 def get_stats():
-    return db.stats()
+    s = db.stats()
+    s.update(db.aircraft_stats())
+    return s
 
 
 @app.get("/api/map")

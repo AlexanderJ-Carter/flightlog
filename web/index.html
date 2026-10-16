@@ -74,7 +74,7 @@ input,textarea{font-family:inherit;outline:none;color:var(--text)}
 .hero p{color:var(--text2);font-size:.9rem;margin-top:.35rem}
 
 /* ===== 统计 ===== */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.6rem}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.6rem}
 .stat{position:relative;overflow:hidden;padding:1.4rem 1.5rem;border-radius:var(--radius);
   background:var(--card);border:1px solid var(--border);backdrop-filter:blur(8px);
   transition:transform .25s,border-color .25s}
@@ -86,6 +86,8 @@ input,textarea{font-family:inherit;outline:none;color:var(--text)}
 .stat .num.g{background:linear-gradient(120deg,var(--green),#7ff5b0);-webkit-background-clip:text}
 .stat .num.y{background:linear-gradient(120deg,var(--gold),#ffe9a3);-webkit-background-clip:text}
 .stat .num.p{background:linear-gradient(120deg,var(--accent2),#b9a3ff);-webkit-background-clip:text}
+.ac-badge{display:inline-block;padding:.12rem .5rem;border-radius:6px;font-size:.74rem;font-weight:700;
+  background:rgba(255,145,0,.12);color:#ff9100;border:1px solid rgba(255,145,0,.25)}
 .stat .lbl{font-size:.75rem;color:var(--text2);margin-top:.3rem;font-weight:600}
 
 /* ===== 地图 ===== */
@@ -227,6 +229,7 @@ td .muted{color:var(--text3)}
     <div class="stat"><div class="num g" id="stKm">–</div><div class="lbl">总里程（公里）</div></div>
     <div class="stat"><div class="num y" id="stEarth">–</div><div class="lbl">绕地球（圈）</div></div>
     <div class="stat"><div class="num p" id="stAirports">–</div><div class="lbl">去过机场</div></div>
+    <div class="stat"><div class="num" id="stAircraft" style="background:linear-gradient(120deg,#ff9100,#ffc46b);-webkit-background-clip:text">–</div><div class="lbl">坐过机型</div></div>
   </section>
 
   <section class="map-card">
@@ -247,6 +250,7 @@ td .muted{color:var(--text3)}
       <div class="field"><label>出发机场 *</label><input id="mFrom" placeholder="PEK" style="text-transform:uppercase" maxlength="3"></div>
       <div class="field"><label>到达机场 *</label><input id="mTo" placeholder="SHA" style="text-transform:uppercase" maxlength="3"></div>
       <div class="field"><label>座位</label><input id="mSeat" placeholder="32A"></div>
+      <div class="field"><label>机型</label><input id="mAircraft" placeholder="A350 / 77W / C919"></div>
       <div class="field"><label>备注</label><input id="mNote" placeholder="靠窗，风景好"></div>
     </div>
     <div style="margin-top:1.2rem">
@@ -279,14 +283,15 @@ td .muted{color:var(--text3)}
   <section class="table-card">
     <div class="th"><h2>航班明细</h2><span style="font-size:.78rem;color:var(--text3)" id="cntInfo"></span></div>
     <table>
-      <thead><tr><th>日期</th><th>航班</th><th>航线</th><th>座位</th><th>备注</th><th></th></tr></thead>
-      <tbody id="tbody"><tr><td colspan="6" class="hint"><span class="spin"></span>加载中…</td></tr></tbody>
+      <thead><tr><th>日期</th><th>航班</th><th>航线</th><th>机型</th><th>座位</th><th>备注</th><th></th></tr></thead>
+      <tbody id="tbody"><tr><td colspan="7" class="hint"><span class="spin"></span>加载中…</td></tr></tbody>
     </table>
   </section>
 
   <section class="charts">
     <div class="chart-card"><h3>年度航班趋势</h3><div class="bars" id="yearChart"><div class="hint">加载中…</div></div></div>
     <div class="chart-card"><h3>航司排行</h3><div class="bars" id="airChart"><div class="hint">加载中…</div></div></div>
+    <div class="chart-card"><h3>🛩️ 机型排行（飞友专区）</h3><div class="bars" id="acChart"><div class="hint">加载中…</div></div></div>
   </section>
 </div>
 
@@ -347,8 +352,10 @@ async function loadStats(){
     document.getElementById('stKm').textContent = d.km ? Math.round(d.km).toLocaleString() : '–';
     document.getElementById('stEarth').textContent = d.km ? (d.km/40075).toFixed(2) : '–';
     document.getElementById('stAirports').textContent = d.airports ?? '–';
+    document.getElementById('stAircraft').textContent = d.aircraft_types ?? '–';
     bars('yearChart', d.years||{}, false);
     bars('airChart', d.airlines||{}, true);
+    bars('acChart', d.aircraft||{}, true);
   }catch(e){ setStatus(false); toast('无法连接后端，请先启动：docker compose up -d', true); }
 }
 async function loadMap(){
@@ -363,7 +370,7 @@ async function loadFlights(){
     table((await r.json()).flights||[]);
   }catch(e){
     document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="6" class="empty"><span class="icon">🛫</span>暂无航班记录<br><small>后端启动后自动加载，或先用上方录入</small></td></tr>';
+      '<tr><td colspan="7" class="empty"><span class="icon">🛫</span>暂无航班记录<br><small>后端启动后自动加载，或先用上方录入</small></td></tr>';
   }
 }
 
@@ -412,12 +419,13 @@ function table(flights){
   const tb=document.getElementById('tbody');
   document.getElementById('cntInfo').textContent = flights.length ? flights.length+' 条' : '';
   if(!flights.length){
-    tb.innerHTML='<tr><td colspan="6" class="empty"><span class="icon">🛫</span>暂无航班记录<small><br>用上方任一方式录入你的第一段航程</small></td></tr>';
+    tb.innerHTML='<tr><td colspan="7" class="empty"><span class="icon">🛫</span>暂无航班记录<small><br>用上方任一方式录入你的第一段航程</small></td></tr>';
     return;
   }
   tb.innerHTML = flights.map(f=>
     '<tr><td>'+esc(f.date)+'</td><td class="fl">'+esc(f.flight)+'</td>'+
     '<td class="route">'+esc(f.from)+' → '+esc(f.to)+'</td>'+
+    '<td>'+(f.aircraft?'<span class="ac-badge">'+esc(f.aircraft)+'</span>':'<span class="muted">–</span>')+'</td>'+
     '<td>'+(esc(f.seat)||'<span class="muted">–</span>')+'</td>'+
     '<td class="muted">'+esc(f.note)+'</td>'+
     '<td><button class="btn btn-danger btn-sm" onclick="del('+f.id+')">删除</button></td></tr>'
@@ -448,14 +456,14 @@ function collect(ids){
   const o={}; ids.forEach(i=>o[i]=document.getElementById(i).value.trim()); return o;
 }
 async function submitManual(){
-  const d=collect(['mDate','mFlight','mFrom','mTo','mSeat','mNote']);
+  const d=collect(['mDate','mFlight','mFrom','mTo','mSeat','mNote','mAircraft']);
   if(!d.mDate||!d.mFlight||!d.mFrom||!d.mTo) return toast('请填写日期、航班号、出发、到达', true);
   const body={date:d.mDate,flight:d.mFlight.toUpperCase(),from:d.mFrom.toUpperCase(),
-    to:d.mTo.toUpperCase(),seat:d.mSeat,note:d.mNote};
+    to:d.mTo.toUpperCase(),seat:d.mSeat,note:d.mNote,aircraft:d.mAircraft};
   const r=await api('/api/flights',{method:'POST',body:JSON.stringify(body)});
   if(!r.ok) return toast('录入失败，请检查后端服务', true);
   toast('已录入 ✈️');
-  ['mDate','mFlight','mFrom','mTo','mSeat','mNote'].forEach(i=>document.getElementById(i).value='');
+  ['mDate','mFlight','mFrom','mTo','mSeat','mNote','mAircraft'].forEach(i=>document.getElementById(i).value='');
   loadAll();
 }
 
@@ -472,7 +480,7 @@ async function doLookup(){
       window._lk=j;
       el.innerHTML='<div class="result"><div class="info"><b>'+esc(j.flight||f)+'</b> · '+esc(j.date||d)+
         '<div class="sub">'+esc(j.from)+' → '+esc(j.to)+' · '+esc(j.airline||'')+
-        ' · '+esc(j.dep_time||'')+' ~ '+esc(j.arr_time||'')+'</div></div>'+
+        ' · '+esc(j.dep_time||'')+' ~ '+esc(j.arr_time||'')+' · '+esc(j.aircraft||'')+'</div></div>'+
         '<button class="btn btn-primary btn-sm" onclick="saveLk()">存入档案</button></div>';
     } else {
       el.innerHTML='<div class="result"><div class="info" style="color:var(--text2)">未查到'+(j.reason?'：'+esc(j.reason):'')+
@@ -483,7 +491,7 @@ async function doLookup(){
 async function saveLk(){
   const d=window._lk; if(!d) return;
   const r=await api('/api/flights',{method:'POST',body:JSON.stringify(
-    {date:d.date,flight:d.flight,from:d.from,to:d.to,seat:d.seat||'',note:d.airline||''})});
+    {date:d.date,flight:d.flight,from:d.from,to:d.to,seat:d.seat||'',note:d.airline||'',aircraft:d.aircraft||''})});
   if(!r.ok) return toast('保存失败', true);
   toast('已存入档案 ✈️'); document.getElementById('lkResult').innerHTML=''; loadAll();
 }
