@@ -208,7 +208,7 @@ td .muted{color:var(--text3)}
 <header class="topbar">
   <div class="brand"><span class="plane">✈️</span> FlightLog</div>
   <div class="api-ctl">
-    <input id="apiBase" value="http://localhost:8321" spellcheck="false">
+    <input id="apiBase" spellcheck="false">
     <span class="pill off" id="apiPill"><span class="dot"></span><span id="apiTxt">未连接</span></span>
     <button class="pill" id="themeBtn" title="切换主题" style="cursor:pointer">🌗</button>
   </div>
@@ -293,6 +293,14 @@ td .muted{color:var(--text3)}
 <div id="toast"></div>
 
 <script>
+// ===== API 地址：托管环境下自动同源，本地文件打开时用默认端口 =====
+(function(){
+  const el = document.getElementById('apiBase');
+  el.value = localStorage.getItem('fl-api')
+    || (location.protocol.startsWith('http') ? location.origin : 'http://localhost:8321');
+  el.addEventListener('change', ()=>localStorage.setItem('fl-api', el.value));
+})();
+
 // ===== 主题（跟随系统 + 手动切换 + localStorage 记忆）=====
 (function(){
   const saved = localStorage.getItem('fl-theme');
