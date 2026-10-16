@@ -110,8 +110,14 @@ import os
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-WEB_DIR = os.environ.get("FLIGHTLOG_WEB_DIR",
-                         os.path.join(os.path.dirname(__file__), "web"))
+_HERE = os.path.dirname(os.path.abspath(__file__))
+WEB_DIR = os.environ.get("FLIGHTLOG_WEB_DIR", "")
+if not WEB_DIR:
+    for _cand in (os.path.join(_HERE, "web"),          # Docker 镜像内 /app/web
+                  os.path.join(_HERE, "..", "web")):   # 本地开发 server/../web
+        if os.path.isfile(os.path.join(_cand, "index.html")):
+            WEB_DIR = _cand
+            break
 
 if os.path.isdir(WEB_DIR):
     app.mount("/assets", StaticFiles(directory=WEB_DIR), name="assets")
