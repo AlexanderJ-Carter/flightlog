@@ -17,6 +17,7 @@ import {
   labelReason,
   formatKm,
 } from "../util.js";
+import { disconnectCopy } from "../connection.js";
 
 let pendingImport = null;
 let unsub = null;
@@ -29,11 +30,8 @@ function hasActiveFilters(f) {
 
 function emptyMessage(state) {
   if (!state.connected) {
-    return {
-      icon: "⚠",
-      title: "无法连接后端",
-      sub: "请先启动服务后再查看明细",
-    };
+    const copy = disconnectCopy(state);
+    return { icon: "⚠", title: copy.title, sub: copy.sub };
   }
   if (hasActiveFilters(state.filters)) {
     return { icon: "⌕", title: "无匹配结果", sub: "试试清空筛选条件" };

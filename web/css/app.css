@@ -176,6 +176,56 @@ input, textarea, select {
 }
 .brand-license:hover { color: var(--accent); border-color: var(--border-hi) }
 
+.status-banner {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 1999;
+  padding: 0.55rem 1.25rem;
+  background: color-mix(in srgb, var(--amber) 12%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--amber) 35%, var(--border));
+}
+.status-banner-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.85rem;
+  font-size: 0.82rem;
+  color: var(--text2);
+}
+.status-banner-inner strong {
+  color: var(--text);
+  font-weight: 700;
+}
+.status-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+@media (max-width: 768px) {
+  .status-banner { top: 0 }
+  .status-banner-actions { margin-left: 0; width: 100% }
+}
+
+.error-page { display: flex; flex-direction: column; min-height: 100% }
+.error-shell {
+  position: relative;
+  z-index: 1;
+  max-width: 32rem;
+  margin: auto;
+  padding: 3rem 1.25rem;
+  text-align: center;
+}
+.error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+
 .nav-surfaces {
   display: flex;
   gap: 0.2rem;
@@ -267,6 +317,7 @@ input, textarea, select {
   font-weight: 650;
   color: var(--text3);
   min-height: 48px;
+  min-width: 48px;
 }
 .nav-dock button.active {
   color: var(--accent);

@@ -81,9 +81,27 @@ def test_redirect_uri_plain_http_when_no_hints():
         assert auth._redirect_uri(req) == "http://localhost:8321/api/auth/callback"
 
 
+def _request_with_query(query: str, **kwargs) -> Request:
+    scope = _request(**kwargs).scope
+    scope["query_string"] = query.encode()
+    return Request(scope)
+
+
+def test_safe_next_accepts_relative_path():
+    req = _request_with_query("next=%2F%23logbook")
+    assert auth._safe_next(req) == "/#logbook"
+
+
+def test_safe_next_rejects_open_redirect():
+    req = _request_with_query("next=https%3A%2F%2Fevil.example")
+    assert auth._safe_next(req) == "/"
+
+
 if __name__ == "__main__":
     test_redirect_uri_uses_configured_public_origin()
     test_redirect_uri_honors_forwarded_proto()
     test_redirect_uri_https_for_oidc_host_without_forwarded()
     test_redirect_uri_plain_http_when_no_hints()
+    test_safe_next_accepts_relative_path()
+    test_safe_next_rejects_open_redirect()
     print("auth_oidc tests OK")

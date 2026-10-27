@@ -19,6 +19,8 @@ docker compose up -d --build
 
 顶栏可切换深浅色主题（跟随系统）。数据源 pill 显示「免费航线库」或「实时+航线」。「API」仅在改后端地址时展开。
 
+若静态页与 API 分离部署（例如 Nginx 托管 `web/`、反代 `/api` 到后端），请保证浏览器访问的 API 与登录回调同源，或在 `index.html` 里设置 `<meta name="flightlog-api-base" content="https://你的 API 根">`。未连接时顶栏会显示状态条，OIDC 开启时提供「登录」入口（Pocket ID / id.alexander.xin）。
+
 地图底图为 Esri Canvas（无需 key）；Leaflet 与字体随应用本地提供，离线也能打开界面（航线库查询仍需外网）。
 
 ## 录入方式

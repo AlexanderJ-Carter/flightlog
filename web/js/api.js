@@ -2,10 +2,17 @@
 
 let _base = "";
 
+function metaApiBase() {
+  const el = document.querySelector('meta[name="flightlog-api-base"]');
+  const v = el?.getAttribute("content")?.trim();
+  return v || "";
+}
+
 export function initApiBase() {
   const saved = localStorage.getItem("fl-api");
   _base =
     saved ||
+    metaApiBase() ||
     (location.protocol.startsWith("http")
       ? location.origin
       : "http://localhost:8321");
@@ -29,16 +36,21 @@ async function request(path, opts = {}) {
   const r = await fetch(getBase() + path, {
     ...opts,
     headers,
-    credentials: "same-origin",
+    credentials: "include",
   });
-  if (r.status === 401 && !path.startsWith("/api/auth/")) {
-    location.href = "/api/auth/login";
-    throw new Error("需要登录");
-  }
   let data = null;
   const ct = r.headers.get("content-type") || "";
   if (ct.includes("application/json")) {
     data = await r.json();
+  }
+  if (r.status === 401 && !path.startsWith("/api/auth/")) {
+    const msg =
+      (data && (data.detail?.message || data.detail || data.message)) ||
+      "需要登录";
+    const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    err.status = 401;
+    err.authRequired = true;
+    throw err;
   }
   if (!r.ok) {
     const msg =
@@ -53,6 +65,7 @@ async function request(path, opts = {}) {
 }
 
 export const api = {
+  authStatus: () => request("/api/auth/status"),
   stats: () => request("/api/stats"),
   map: () => request("/api/map"),
   flights: (params = {}) => {
@@ -98,8 +111,17 @@ export const api = {
     const r = await fetch(getBase() + "/api/import/file", {
       method: "POST",
       body: fd,
+      credentials: "include",
     });
     const data = await r.json().catch(() => ({}));
+    if (r.status === 401) {
+      const err = new Error(
+        typeof data.detail === "string" ? data.detail : "需要登录"
+      );
+      err.status = 401;
+      err.authRequired = true;
+      throw err;
+    }
     if (!r.ok) {
       const msg = data.detail || data.message || `HTTP ${r.status}`;
       const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));

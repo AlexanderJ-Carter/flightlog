@@ -157,6 +157,13 @@ async def _discovery() -> dict:
         return r.json()
 
 
+def _safe_next(request: Request) -> str:
+    raw = (request.query_params.get("next") or "/").strip()
+    if not raw.startswith("/") or raw.startswith("//"):
+        return "/"
+    return raw
+
+
 async def login(request: Request) -> RedirectResponse:
     if not _host_ok(request):
         raise HTTPException(400, "主机名不在允许的登录回调列表")
@@ -165,6 +172,7 @@ async def login(request: Request) -> RedirectResponse:
     challenge = _b64(hashlib.sha256(verifier.encode()).digest())
     state = secrets.token_urlsafe(24)
     nonce = secrets.token_urlsafe(18)
+    next_url = _safe_next(request)
     params = {
         "client_id": _client_id(),
         "response_type": "code",
@@ -179,7 +187,13 @@ async def login(request: Request) -> RedirectResponse:
     resp = RedirectResponse(url, status_code=302)
     resp.set_cookie(
         _STATE_COOKIE,
-        _sign({"state": state, "nonce": nonce, "verifier": verifier, "exp": int(time.time()) + 600}),
+        _sign({
+            "state": state,
+            "nonce": nonce,
+            "verifier": verifier,
+            "next": next_url,
+            "exp": int(time.time()) + 600,
+        }),
         httponly=True,
         secure=_secure(request),
         samesite="lax",
@@ -226,7 +240,10 @@ async def callback(request: Request) -> RedirectResponse:
         raise HTTPException(403, "该账号不在允许列表")
     if not email:
         raise HTTPException(400, "Pocket ID 未返回邮箱")
-    resp = RedirectResponse("/", status_code=302)
+    next_url = saved.get("next") or "/"
+    if not isinstance(next_url, str) or not next_url.startswith("/") or next_url.startswith("//"):
+        next_url = "/"
+    resp = RedirectResponse(next_url, status_code=302)
     resp.delete_cookie(_STATE_COOKIE, path="/")
     resp.set_cookie(
         _COOKIE,
@@ -251,7 +268,13 @@ def require(request: Request) -> Response | None:
     if not enabled():
         return None
     path = request.url.path
-    if path in ("/api/health", "/api/auth/login", "/api/auth/callback", "/api/auth/logout"):
+    if path in (
+        "/api/health",
+        "/api/auth/login",
+        "/api/auth/callback",
+        "/api/auth/logout",
+        "/api/auth/status",
+    ):
         return None
     if path.startswith(("/css/", "/js/", "/fonts/")):
         return None

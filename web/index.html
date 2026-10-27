@@ -6,11 +6,11 @@
 <meta name="theme-color" content="#f4f6f9" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1419" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
+<meta name="flightlog-api-base" content="">
 <title>FlightLog · 我的飞行档案</title>
 <link rel="stylesheet" href="/css/fonts.css"/>
 <link rel="stylesheet" href="/css/leaflet.css"/>
 <link rel="stylesheet" href="/css/app.css"/>
-<script src="/js/lib/leaflet.js"></script>
 </head>
 <body>
 <a class="skip-link" href="#main-content">跳到主要内容</a>
@@ -34,9 +34,11 @@
     <span class="pill" id="provPill" title="数据源">航线库</span>
     <span class="pill off" id="apiPill"><span class="dot"></span><span id="apiTxt">未连接</span></span>
     <button type="button" class="pill btn-pill" id="themeBtn" title="切换到浅色">浅色</button>
-    <a class="pill btn-pill" id="logoutBtn" href="/api/auth/logout" style="text-decoration:none">退出</a>
+    <a class="pill btn-pill" id="logoutBtn" href="/api/auth/logout" hidden style="text-decoration:none">退出</a>
   </div>
 </header>
+
+<div id="statusBanner" class="status-banner" hidden></div>
 
 <main class="shell" id="main-content">
 
@@ -323,7 +325,7 @@
   </div>
 </div>
 
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <nav class="nav-dock" aria-label="主导航">
   <button type="button" data-surface="atlas" class="active" aria-current="page">
@@ -347,6 +349,6 @@
   <a href="https://github.com/AlexanderJ-Carter/flightlog/blob/main/docs/THIRD_PARTY_NOTICES.md">第三方数据</a>
 </footer>
 
-<script type="module" src="/js/app.js?v=20261027a"></script>
+<script type="module" src="/js/app.js?v=20261027b"></script>
 </body>
 </html>

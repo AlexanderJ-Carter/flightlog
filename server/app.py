@@ -74,6 +74,15 @@ def auth_logout(request: Request):
     return auth_oidc.logout(request)
 
 
+@app.get("/api/auth/status")
+def auth_status(request: Request):
+    en = auth_oidc.enabled()
+    return {
+        "oidc": en,
+        "authenticated": (not en) or bool(auth_oidc.session_email(request)),
+    }
+
+
 @app.middleware("http")
 async def no_cache_frontend(request, call_next):
     """本地无构建前端：避免浏览器死缓存旧 JS/CSS。"""
@@ -593,6 +602,13 @@ if os.path.isdir(WEB_DIR):
     @app.get("/", include_in_schema=False)
     def index():
         return FileResponse(os.path.join(WEB_DIR, "index.html"))
+
+    @app.get("/404.html", include_in_schema=False)
+    def not_found_page():
+        p = os.path.join(WEB_DIR, "404.html")
+        if os.path.isfile(p):
+            return FileResponse(p, status_code=404)
+        raise HTTPException(404)
 
     @app.get("/favicon.ico", include_in_schema=False)
     def favicon():
