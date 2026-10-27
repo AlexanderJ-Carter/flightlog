@@ -1,21 +1,10 @@
-# 权威生产部署：腾讯 self-hosted（与 Folio 同机，独立 repo runner）
+# 可选生产部署：需 flightlog 专用 self-hosted runner（当前未注册，仅 workflow_dispatch）
 # 公网入口仍为 Cloudflare → AlexanderCloud nginx flightlog-proxy → Tailscale → 本机 :8321
-# GitHub Pages（pages.yml）仅发布 site/ 说明页，不承载产品前端。
+# 日常生产更新见 docs/DEPLOY.md（SSH + git/rsync + docker compose）。GitHub Pages（pages.yml）仅发布 site/。
 
 name: Deploy FlightLog (Tencent)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "web/**"
-      - "server/**"
-      - "docker/**"
-      - "Dockerfile"
-      - "docker-compose.yml"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/tencent-deploy.yml"
   workflow_dispatch:
 
 concurrency:
