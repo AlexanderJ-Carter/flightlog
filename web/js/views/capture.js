@@ -96,11 +96,17 @@ function syncEditMode(state) {
 }
 
 function showTab(name) {
-  document.querySelectorAll(".tab").forEach((t) => {
-    t.classList.toggle("active", t.dataset.tab === name);
+  document.querySelectorAll(".capture-tabs .tab").forEach((t) => {
+    const on = t.dataset.tab === name;
+    t.classList.toggle("active", on);
+    t.setAttribute("aria-selected", on ? "true" : "false");
+    t.tabIndex = on ? 0 : -1;
   });
   document.querySelectorAll(".tab-panel").forEach((p) => {
-    p.classList.toggle("active", p.id === "panel-" + name);
+    const on = p.id === "panel-" + name;
+    p.classList.toggle("active", on);
+    if (on) p.removeAttribute("hidden");
+    else p.setAttribute("hidden", "");
   });
 }
 

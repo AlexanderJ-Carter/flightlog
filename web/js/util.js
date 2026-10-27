@@ -8,6 +8,34 @@ export function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+const CABIN = {
+  economy: "经济舱",
+  "economy+": "超级经济舱",
+  business: "公务舱",
+  first: "头等舱",
+};
+const SEAT = { window: "靠窗", aisle: "过道", middle: "中间" };
+const REASON = { leisure: "休闲", business: "公务", other: "其他" };
+
+export function labelCabin(v) {
+  return CABIN[v] || v || "";
+}
+
+export function labelSeatType(v) {
+  return SEAT[v] || v || "";
+}
+
+export function labelReason(v) {
+  return REASON[v] || v || "";
+}
+
+export function formatKm(km) {
+  if (km == null || km === "") return "";
+  const n = Number(km);
+  if (!Number.isFinite(n)) return "";
+  return `${Math.round(n).toLocaleString()} km`;
+}
+
 export function toast(msg, { err = false, action } = {}) {
   const t = document.getElementById("toast");
   t.className = "show" + (err ? " err" : "");
