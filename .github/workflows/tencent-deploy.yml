@@ -1,0 +1,88 @@
+# 权威生产部署：腾讯 self-hosted（与 Folio 同机，独立 repo runner）
+# 公网入口仍为 Cloudflare → AlexanderCloud nginx flightlog-proxy → Tailscale → 本机 :8321
+# GitHub Pages（pages.yml）仅发布 site/ 说明页，不承载产品前端。
+
+name: Deploy FlightLog (Tencent)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "server/**"
+      - "docker/**"
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/tencent-deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: flightlog-tencent-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, flightlog-tencent]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Sync into instance directory
+        env:
+          REMOTE: ${{ vars.FLIGHTLOG_REMOTE_PATH || '/home/ubuntu/flightlog' }}
+        run: |
+          mkdir -p "${REMOTE}"
+          rsync -az --delete \
+            --exclude .git \
+            --exclude .github \
+            --exclude data \
+            --exclude .env \
+            --exclude site \
+            --exclude "*.db" \
+            ./ "${REMOTE}/"
+
+      - name: Build and restart containers
+        env:
+          REMOTE: ${{ vars.FLIGHTLOG_REMOTE_PATH || '/home/ubuntu/flightlog' }}
+        run: |
+          cd "${REMOTE}"
+          DOCKER_BUILDKIT=1 docker compose build
+          docker compose up -d
+          docker builder prune -af >/dev/null 2>&1 || true
+
+      - name: Health check
+        env:
+          REMOTE: ${{ vars.FLIGHTLOG_REMOTE_PATH || '/home/ubuntu/flightlog' }}
+        run: |
+          BIND=$(grep -E '^FLIGHTLOG_BIND=' "${REMOTE}/.env" 2>/dev/null | head -1 | cut -d= -f2-)
+          PORT=$(grep -E '^FLIGHTLOG_PORT=' "${REMOTE}/.env" 2>/dev/null | head -1 | cut -d= -f2-)
+          HOST="${BIND:-100.111.222.66}"
+          PORT="${PORT:-8321}"
+          URL="http://${HOST}:${PORT}/api/health"
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "${URL}" || echo 000)
+            echo "attempt $i -> ${URL} -> $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 3
+          done
+          docker logs flightlog --tail 80 2>/dev/null || true
+          exit 1
+
+      - name: Purge Cloudflare cache
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: |
+          if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ZONE_ID" ]; then
+            echo "Cloudflare purge skipped (secrets not set on flightlog repo)."
+            exit 0
+          fi
+          response=$(curl -sS -w "\nHTTP_CODE:%{http_code}" -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"files":["https://flightlog.alexander.xin/","https://flightlog.alexander.xin/js/app.js"]}')
+          echo "$response"
+          echo "$response" | grep -q 'HTTP_CODE:200' || exit 1

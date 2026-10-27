@@ -110,7 +110,7 @@ function showTab(name) {
   });
 }
 
-function afterSave(msg = "已写入档案") {
+function afterSave(msg = "航迹已落档") {
   toast(msg, {
     action: {
       label: "在地图上查看",
@@ -217,7 +217,7 @@ function renderLookupHit(j, date) {
 function renderLookupCandidates(j, date) {
   window._lkCandidates = j.candidates || [];
   const setup = j.setup_required
-    ? `<button type="button" class="btn btn-sm btn-ghost" id="btnGoSmart">去配置 key</button>`
+    ? `<button type="button" class="btn btn-sm btn-ghost" id="btnGoSmart">打开高级设置</button>`
     : "";
   const rows = window._lkCandidates
     .map((c, i) => {

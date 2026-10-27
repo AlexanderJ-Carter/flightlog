@@ -3,7 +3,7 @@
 import { api } from "../api.js";
 import { getState, theme, setSurface, subscribe } from "../store.js";
 import { bars, esc } from "../util.js";
-import { disconnectCopy } from "../connection.js";
+import { disconnectCopy, loginUrl } from "../connection.js";
 import { loadLeaflet } from "../leaflet-loader.js";
 
 let map = null;
@@ -178,10 +178,70 @@ async function loadRefRoutes(airports) {
   }
 }
 
+function renderHeroStory(state) {
+  const el = document.getElementById("heroStory");
+  if (!el) return;
+  if (state.needsLogin) {
+    el.innerHTML =
+      '<p class="hero-story">登录后继续查看你的航迹与里程。</p>' +
+      `<a class="btn btn-primary btn-sm" href="${esc(loginUrl())}">登录</a>`;
+    return;
+  }
+  if (!state.connected) {
+    el.innerHTML =
+      '<p class="hero-story muted">暂时连不上服务，稍后再打开试试。</p>';
+    return;
+  }
+  const stats = state.stats;
+  const total = stats?.total || 0;
+  if (!total) {
+    el.innerHTML =
+      '<p class="hero-story">从一段航班开始——查航班号最快，订票短信也能一键解析。</p>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="heroStartCapture">录入第一程</button>';
+    document.getElementById("heroStartCapture")?.addEventListener("click", () =>
+      setSurface("capture")
+    );
+    return;
+  }
+  const parts = [];
+  if (stats.km != null) {
+    const laps = (stats.km / 40075).toFixed(1);
+    parts.push(`累计约绕地球 ${laps} 圈`);
+  }
+  const topRoute = Object.entries(stats.routes || {}).sort(
+    (a, b) => b[1] - a[1]
+  )[0];
+  if (topRoute) {
+    const [key, n] = topRoute;
+    const [from, to] = key.split("-");
+    parts.push(`最爱航线 ${from} ↔ ${to}（${n} 次）`);
+  }
+  const recent = [...(state.flights || [])].sort((a, b) =>
+    (b.date || "").localeCompare(a.date || "")
+  )[0];
+  if (recent) {
+    parts.push(
+      `最近 ${recent.date} · ${recent.flight} ${recent.from}→${recent.to}`
+    );
+  }
+  el.innerHTML = `<p class="hero-story">${esc(parts.join(" · "))}</p>`;
+}
+
 function renderEmpty(state) {
   const empty = document.getElementById("mapEmpty");
   if (!empty) return;
   const card = empty.querySelector(".card");
+  if (state.needsLogin) {
+    empty.classList.add("show");
+    if (card) {
+      const copy = disconnectCopy(state);
+      card.innerHTML =
+        '<div class="map-empty-illus" aria-hidden="true"></div>' +
+        `<h3>${esc(copy.title)}</h3><p>${esc(copy.sub)}</p>` +
+        `<a class="btn btn-primary" href="${esc(loginUrl())}">${esc(copy.cta?.label || "登录")}</a>`;
+    }
+    return;
+  }
   if (!state.connected) {
     empty.classList.add("show");
     if (card) {
@@ -194,6 +254,7 @@ function renderEmpty(state) {
         action = `<button type="button" class="btn btn-primary" id="btnOpenApi">配置 API</button>`;
       }
       card.innerHTML =
+        '<div class="map-empty-illus" aria-hidden="true"></div>' +
         `<h3>${esc(copy.title)}</h3><p>${esc(copy.sub)}</p>${action}`;
     }
     return;
@@ -206,7 +267,9 @@ function renderEmpty(state) {
   empty.classList.toggle("show", emptyMap);
   if (!emptyMap || !card) return;
   card.innerHTML =
-    '<h3>画上第一条航迹</h3><p>录入航班后，机场与航线会出现在这里。</p>' +
+    '<div class="map-empty-illus" aria-hidden="true"></div>' +
+    "<h3>画上第一条航迹</h3>" +
+    "<p>录入一程航班，机场与弧线会落在这片地图上。</p>" +
     '<button type="button" class="btn btn-primary" id="btnGoCapture">去录入</button>';
   document.getElementById("btnGoCapture")?.addEventListener("click", () => {
     setSurface("capture");
@@ -263,6 +326,7 @@ function renderStats(stats, state) {
 
 function render(state) {
   if (state.surface !== "atlas") return;
+  renderHeroStory(state);
   renderStats(state.stats, state);
   void renderMap(state.map.airports, state.map.routes);
   renderEmpty(state);

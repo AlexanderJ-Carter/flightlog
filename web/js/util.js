@@ -38,7 +38,7 @@ export function formatKm(km) {
 
 export function toast(msg, { err = false, action } = {}) {
   const t = document.getElementById("toast");
-  t.className = "show" + (err ? " err" : "");
+  t.className = "show" + (err ? " err" : " ok");
   t.innerHTML = "";
   t.append(document.createTextNode(msg));
   if (action) {
@@ -82,6 +82,30 @@ export function bars(el, obj, alt = false) {
       });
     })
   );
+}
+
+export function skeletonTableRows(count = 6) {
+  return Array.from({ length: count }, () =>
+    "<tr class=\"skeleton-row\">" +
+    "<td><span class=\"sk sk-sm\"></span></td>" +
+    "<td><span class=\"sk sk-md\"></span></td>" +
+    "<td><span class=\"sk sk-lg\"></span></td>" +
+    "<td><span class=\"sk sk-sm\"></span></td>" +
+    "<td><span class=\"sk sk-sm\"></span></td>" +
+    "<td><span class=\"sk sk-xs\"></span></td>" +
+    "<td><span class=\"sk sk-md\"></span></td>" +
+    "<td></td></tr>"
+  ).join("");
+}
+
+export function skeletonFlightCards(count = 4) {
+  return Array.from({ length: count }, () =>
+    '<article class="flight-card skeleton-card">' +
+    '<div class="sk sk-sm" style="width:40%"></div>' +
+    '<div class="sk sk-lg" style="width:70%;margin-top:.5rem"></div>' +
+    '<div class="sk sk-md" style="width:55%;margin-top:.45rem"></div>' +
+    "</article>"
+  ).join("");
 }
 
 export function todayISO() {

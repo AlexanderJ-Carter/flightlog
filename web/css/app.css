@@ -277,6 +277,7 @@ input, textarea, select {
 }
 .pill.on .dot { background: var(--green) }
 .pill.off .dot { background: var(--red) }
+.pill.auth .dot { background: var(--amber) }
 .pill.btn-pill { cursor: pointer }
 .pill.btn-pill:hover { border-color: var(--border-hi); color: var(--text) }
 
@@ -389,6 +390,27 @@ input, textarea, select {
   font-size: 0.95rem;
   margin-top: 0.45rem;
   max-width: 28rem;
+}
+.hero-story-wrap {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  min-height: 2rem;
+}
+.hero-story {
+  color: var(--text2);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  max-width: 36rem;
+}
+.hero-story.muted { color: var(--text3) }
+.capture-hint {
+  margin-top: 0.65rem;
+  font-size: 0.78rem;
+  color: var(--text3);
+  line-height: 1.45;
 }
 
 .stat-grid {
@@ -528,6 +550,70 @@ input, textarea, select {
   font-size: 0.86rem;
   margin-bottom: 1rem;
   line-height: 1.5;
+}
+.map-empty-illus {
+  width: 88px;
+  height: 48px;
+  margin: 0 auto 0.85rem;
+  border-radius: 999px;
+  border: 2px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  position: relative;
+  opacity: 0.85;
+}
+.map-empty-illus::before,
+.map-empty-illus::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.map-empty-illus::before { left: 14px }
+.map-empty-illus::after { right: 14px }
+.map-empty-illus {
+  background: linear-gradient(
+    12deg,
+    transparent 46%,
+    color-mix(in srgb, var(--accent) 35%, transparent) 47%,
+    color-mix(in srgb, var(--accent) 35%, transparent) 53%,
+    transparent 54%
+  );
+}
+.site-cluster {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.85rem;
+}
+.site-cluster a::before { content: "· "; opacity: 0.5 }
+.site-cluster a:first-child::before { content: none }
+.sk {
+  display: block;
+  height: 0.72rem;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--text3) 12%, transparent) 0%,
+    color-mix(in srgb, var(--text3) 22%, transparent) 50%,
+    color-mix(in srgb, var(--text3) 12%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: skShimmer 1.2s ease-in-out infinite;
+}
+.sk-xs { width: 2rem }
+.sk-sm { width: 3.5rem }
+.sk-md { width: 5rem }
+.sk-lg { width: 7rem }
+.skeleton-row td { padding: 0.65rem 0.5rem }
+.skeleton-card { pointer-events: none; opacity: 0.7 }
+@keyframes skShimmer {
+  0% { background-position: 100% 0 }
+  100% { background-position: -100% 0 }
+}
+@media (max-width: 768px) {
+  .api-advanced-toggle { display: none }
 }
 
 .leaflet-popup-content-wrapper {
@@ -1079,6 +1165,9 @@ td .muted, .muted { color: var(--text3) }
   z-index: 9999;
   max-width: min(90vw, 420px);
   text-align: center;
+}
+#toast.show.ok {
+  border-color: color-mix(in srgb, var(--green) 55%, var(--border));
 }
 #toast.show {
   opacity: 1;

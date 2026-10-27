@@ -257,6 +257,18 @@ async def callback(request: Request) -> RedirectResponse:
     return resp
 
 
+def status_payload(request: Request) -> dict:
+    en = enabled()
+    email = session_email(request) if en else None
+    out = {
+        "oidc": en,
+        "authenticated": (not en) or bool(email),
+    }
+    if email:
+        out["email"] = email
+    return out
+
+
 def logout(request: Request) -> RedirectResponse:
     resp = RedirectResponse("/", status_code=302)
     resp.delete_cookie(_COOKIE, path="/")

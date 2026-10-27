@@ -76,11 +76,7 @@ def auth_logout(request: Request):
 
 @app.get("/api/auth/status")
 def auth_status(request: Request):
-    en = auth_oidc.enabled()
-    return {
-        "oidc": en,
-        "authenticated": (not en) or bool(auth_oidc.session_email(request)),
-    }
+    return auth_oidc.status_payload(request)
 
 
 @app.middleware("http")
