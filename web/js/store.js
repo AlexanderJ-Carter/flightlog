@@ -6,6 +6,8 @@ const listeners = new Set();
 
 const state = {
   connected: false,
+  needsLogin: false,
+  auth: { oidc: false, authenticated: true },
   surface: "atlas",
   flights: [],
   stats: null,
@@ -74,10 +76,29 @@ export async function bootstrap() {
   await refresh();
 }
 
+function clearData() {
+  state.stats = null;
+  state.map = { airports: [], routes: [] };
+  state.flights = [];
+  state.airportList = [];
+  state.airportCodes = new Set();
+}
+
 export async function refresh() {
   state.loading = true;
   emit();
   try {
+    const auth = await api.authStatus();
+    state.auth = auth;
+    if (auth.oidc && !auth.authenticated) {
+      state.needsLogin = true;
+      state.connected = false;
+      state.error = null;
+      clearData();
+      return;
+    }
+    state.needsLogin = false;
+
     const [stats, map, flights, airports] = await Promise.all([
       api.stats(),
       api.map(),
@@ -96,7 +117,14 @@ export async function refresh() {
     state.error = null;
   } catch (e) {
     state.connected = false;
-    state.error = e.message || "无法连接后端";
+    if (e.authRequired) {
+      state.needsLogin = true;
+      state.error = e.message || "需要登录";
+    } else {
+      state.needsLogin = false;
+      state.error = e.message || "无法连接后端";
+    }
+    clearData();
   } finally {
     state.loading = false;
     emit();
@@ -105,6 +133,10 @@ export async function refresh() {
 
 export async function setFilters(partial) {
   Object.assign(state.filters, partial);
+  if (state.needsLogin) {
+    emit();
+    return;
+  }
   try {
     const data = await api.flights(state.filters);
     state.flights = data.flights || [];
@@ -112,7 +144,13 @@ export async function setFilters(partial) {
     state.error = null;
   } catch (e) {
     state.connected = false;
-    state.error = e.message || "无法连接后端";
+    if (e.authRequired) {
+      state.needsLogin = true;
+      state.error = e.message || "需要登录";
+    } else {
+      state.needsLogin = false;
+      state.error = e.message || "无法连接后端";
+    }
   }
   emit();
 }

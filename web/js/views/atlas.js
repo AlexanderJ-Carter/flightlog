@@ -3,6 +3,8 @@
 import { api } from "../api.js";
 import { getState, theme, setSurface, subscribe } from "../store.js";
 import { bars, esc } from "../util.js";
+import { disconnectCopy } from "../connection.js";
+import { loadLeaflet } from "../leaflet-loader.js";
 
 let map = null;
 let tileLayer = null;
@@ -43,9 +45,10 @@ function addBaseTiles() {
   });
 }
 
-function ensureMap() {
+async function ensureMap() {
   const el = document.getElementById("map");
   if (!el || map) return;
+  await loadLeaflet();
   map = L.map("map", {
     center: [34, 108],
     zoom: 4,
@@ -72,8 +75,8 @@ function routePath(r) {
   return null;
 }
 
-function renderMap(airports, routes) {
-  ensureMap();
+async function renderMap(airports, routes) {
+  await ensureMap();
   if (!map) return;
   syncTiles();
   overlays.forEach((l) => map.removeLayer(l));
@@ -182,8 +185,16 @@ function renderEmpty(state) {
   if (!state.connected) {
     empty.classList.add("show");
     if (card) {
+      const copy = disconnectCopy(state);
+      const cta = copy.cta;
+      let action = "";
+      if (cta?.href) {
+        action = `<a class="btn btn-primary" href="${esc(cta.href)}">${esc(cta.label)}</a>`;
+      } else if (cta?.action === "api") {
+        action = `<button type="button" class="btn btn-primary" id="btnOpenApi">配置 API</button>`;
+      }
       card.innerHTML =
-        "<h3>无法连接后端</h3><p>请先启动服务：docker compose up -d，或本地 uvicorn。</p>";
+        `<h3>${esc(copy.title)}</h3><p>${esc(copy.sub)}</p>${action}`;
     }
     return;
   }
@@ -253,7 +264,7 @@ function renderStats(stats, state) {
 function render(state) {
   if (state.surface !== "atlas") return;
   renderStats(state.stats, state);
-  renderMap(state.map.airports, state.map.routes);
+  void renderMap(state.map.airports, state.map.routes);
   renderEmpty(state);
 }
 
@@ -264,6 +275,10 @@ export function mountAtlas() {
   });
   document.getElementById("mapEmpty")?.addEventListener("click", (e) => {
     if (e.target?.id === "btnGoCapture") setSurface("capture");
+    if (e.target?.id === "btnOpenApi") {
+      document.getElementById("apiAdvanced")?.classList.add("open");
+      document.getElementById("apiBase")?.focus();
+    }
   });
   const refChk = document.getElementById("mapRefRoutes");
   if (refChk) {
