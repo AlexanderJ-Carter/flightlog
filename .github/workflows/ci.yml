@@ -58,6 +58,9 @@ jobs:
       - name: lookup 单元测试
         run: cd server && uv run python test_lookup.py
 
+      - name: auth_oidc 单元测试
+        run: cd server && uv run python test_auth_oidc.py
+
       - name: API 集成自检
         run: |
           uv run python - <<'PY'

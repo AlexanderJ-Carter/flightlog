@@ -53,6 +53,8 @@ FLIGHTLOG_DATA_DIR=../data uv run python harvest_live.py     # 合法实时采�
 
 常用环境变量见 [docs/USAGE.md](docs/USAGE.md)。
 
+若通过 Cloudflare Tunnel、Nginx 等做 HTTPS 终结，请设置 `FLIGHTLOG_PUBLIC_ORIGIN=https://你的域名`，否则 Pocket ID 登录的 `redirect_uri` 可能仍是 `http://`。
+
 ```bash
 docker compose up -d --build
 docker compose logs -f
