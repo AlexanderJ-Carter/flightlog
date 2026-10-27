@@ -71,11 +71,18 @@ function renderStatusBanner(state) {
 
 function syncAuthChrome(state) {
   const logout = document.getElementById("logoutBtn");
+  const login = document.getElementById("loginBtn");
+  const loggedIn = state.auth?.oidc && state.auth?.authenticated;
   if (logout) {
-    const show = state.auth?.oidc && state.auth?.authenticated;
-    logout.hidden = !show;
-    logout.setAttribute("aria-hidden", show ? "false" : "true");
-    if (show) logout.href = `${getBase()}/api/auth/logout`;
+    logout.hidden = !loggedIn;
+    logout.setAttribute("aria-hidden", loggedIn ? "false" : "true");
+    if (loggedIn) logout.href = `${getBase()}/api/auth/logout`;
+  }
+  if (login) {
+    const showLogin = !!state.needsLogin;
+    login.hidden = !showLogin;
+    login.setAttribute("aria-hidden", showLogin ? "false" : "true");
+    if (showLogin) login.href = loginUrl();
   }
 }
 
@@ -92,11 +99,13 @@ function syncChrome(state) {
   const pill = document.getElementById("apiPill");
   const txt = document.getElementById("apiTxt");
   if (pill) {
-    if (state.needsLogin) {
-      pill.className = "pill off";
-    } else {
-      pill.className = "pill " + (state.connected ? "on" : "off");
-    }
+    pill.className =
+      "pill " +
+      (state.connected
+        ? "on"
+        : state.needsLogin
+          ? "auth"
+          : "off");
   }
   if (txt) {
     txt.textContent = state.needsLogin
@@ -187,11 +196,11 @@ async function main() {
   if (s.connected) {
     await refreshProviderPill();
   } else if (s.needsLogin) {
-    toast("登录后即可加载档案", {
+    toast("登录后即可查看你的飞行档案", {
       action: { label: "去登录", onClick: () => { location.href = loginUrl(); } },
     });
-  } else if (!s.loading) {
-    toast("无法连接后端", { err: true });
+  } else if (!s.loading && s.error) {
+    toast("暂时连不上服务，请稍后再试", { err: true });
   }
 }
 

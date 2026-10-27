@@ -74,6 +74,8 @@ jobs:
           from fastapi.testclient import TestClient
           import app
           c = TestClient(app.app)
+          st = c.get("/api/auth/status").json()
+          assert st.get("oidc") is False and st.get("authenticated") is True
           assert c.get("/api/stats").status_code == 200
           r = c.post("/api/flights", json={
               "date": "2026-05-01", "flight": "MU5101",

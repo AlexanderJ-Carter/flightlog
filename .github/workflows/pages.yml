@@ -1,3 +1,4 @@
+# 仅 GitHub Pages 说明页（site/）；生产产品站走 tencent-deploy.yml → 腾讯 Docker。
 name: pages
 
 on:

@@ -16,6 +16,8 @@ import {
   labelSeatType,
   labelReason,
   formatKm,
+  skeletonTableRows,
+  skeletonFlightCards,
 } from "../util.js";
 import { disconnectCopy } from "../connection.js";
 
@@ -29,6 +31,10 @@ function hasActiveFilters(f) {
 }
 
 function emptyMessage(state) {
+  if (state.needsLogin) {
+    const copy = disconnectCopy(state);
+    return { icon: "◇", title: copy.title, sub: copy.sub };
+  }
   if (!state.connected) {
     const copy = disconnectCopy(state);
     return { icon: "⚠", title: copy.title, sub: copy.sub };
@@ -113,8 +119,7 @@ function renderCards(state, flights) {
   if (!wrap) return;
 
   if (state.loading && !flights.length) {
-    wrap.innerHTML =
-      '<div class="hint"><span class="spin"></span>加载中…</div>';
+    wrap.innerHTML = skeletonFlightCards(4);
     return;
   }
   if (!flights.length) {
@@ -157,8 +162,7 @@ function renderTable(state) {
   renderCards(state, flights);
 
   if (state.loading && !flights.length) {
-    tb.innerHTML =
-      '<tr><td colspan="8" class="hint"><span class="spin"></span>加载中…</td></tr>';
+    tb.innerHTML = skeletonTableRows(6);
     return;
   }
   if (!flights.length) {

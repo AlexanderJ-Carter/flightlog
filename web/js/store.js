@@ -117,9 +117,10 @@ export async function refresh() {
     state.error = null;
   } catch (e) {
     state.connected = false;
-    if (e.authRequired) {
+    if (e.authRequired || e.status === 401) {
       state.needsLogin = true;
-      state.error = e.message || "需要登录";
+      state.auth = { oidc: true, authenticated: false };
+      state.error = null;
     } else {
       state.needsLogin = false;
       state.error = e.message || "无法连接后端";
