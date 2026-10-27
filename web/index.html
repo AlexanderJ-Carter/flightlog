@@ -2,7 +2,10 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#f4f6f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1419" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <title>FlightLog · 我的飞行档案</title>
 <link rel="stylesheet" href="/css/fonts.css"/>
 <link rel="stylesheet" href="/css/leaflet.css"/>
@@ -10,6 +13,7 @@
 <script src="/js/lib/leaflet.js"></script>
 </head>
 <body>
+<a class="skip-link" href="#main-content">跳到主要内容</a>
 
 <header class="topbar">
   <div class="brand">
@@ -17,8 +21,8 @@
     <span>FlightLog</span>
     <a class="brand-license" href="https://github.com/AlexanderJ-Carter/flightlog/blob/main/LICENSE">MIT</a>
   </div>
-  <nav class="nav-surfaces" aria-label="主表面">
-    <button type="button" data-surface="atlas" class="active">档案</button>
+  <nav class="nav-surfaces nav-surfaces--desktop" aria-label="主表面">
+    <button type="button" data-surface="atlas" class="active" aria-current="page">档案</button>
     <button type="button" data-surface="logbook">明细</button>
     <button type="button" data-surface="capture">录入</button>
   </nav>
@@ -34,23 +38,22 @@
   </div>
 </header>
 
-<main class="shell">
+<main class="shell" id="main-content">
 
   <!-- ===== Atlas ===== -->
-  <section class="surface active" id="surface-atlas">
-    <div class="atlas-head">
-      <div>
-        <h1>我的飞行档案</h1>
-        <p>每一段航程，都留在航迹上</p>
-      </div>
-    </div>
+  <section class="surface active" id="surface-atlas" aria-labelledby="atlas-title">
+    <header class="hero">
+      <p class="hero-eyebrow">个人飞行档案</p>
+      <h1 id="atlas-title">我的飞行档案</h1>
+      <p class="hero-lead">每一段航程，都留在航迹上</p>
+    </header>
 
-    <div class="stat-strip">
-      <div class="stat-item"><span class="num" id="stTotal">–</span><span class="lbl">航班</span></div>
-      <div class="stat-item"><span class="num amber" id="stKm">–</span><span class="lbl">公里</span></div>
-      <div class="stat-item"><span class="num" id="stEarth">–</span><span class="lbl">绕地球</span></div>
-      <div class="stat-item"><span class="num accent" id="stAirports">–</span><span class="lbl">机场</span></div>
-      <div class="stat-item"><span class="num" id="stAircraft">–</span><span class="lbl">机型</span></div>
+    <div class="stat-grid" role="list" aria-label="累计统计">
+      <div class="stat-card" role="listitem"><span class="num" id="stTotal">–</span><span class="lbl">航班</span></div>
+      <div class="stat-card stat-card--warm" role="listitem"><span class="num" id="stKm">–</span><span class="lbl">公里</span></div>
+      <div class="stat-card" role="listitem"><span class="num" id="stEarth">–</span><span class="lbl">绕地球</span></div>
+      <div class="stat-card stat-card--accent" role="listitem"><span class="num" id="stAirports">–</span><span class="lbl">机场</span></div>
+      <div class="stat-card" role="listitem"><span class="num" id="stAircraft">–</span><span class="lbl">机型</span></div>
     </div>
 
     <div class="map-stage">
@@ -89,12 +92,14 @@
   </section>
 
   <!-- ===== Logbook ===== -->
-  <section class="surface" id="surface-logbook">
-    <div class="panel-head">
-      <h2>航班明细</h2>
+  <section class="surface" id="surface-logbook" aria-labelledby="logbook-title">
+    <header class="panel-head">
+      <h2 id="logbook-title">航班明细</h2>
       <p class="sub">搜索、筛选、备份与恢复</p>
-    </div>
+    </header>
 
+    <details class="toolbar-drawer" id="toolbarDrawer">
+      <summary class="toolbar-drawer-summary">筛选与导入</summary>
     <div class="toolbar">
       <input id="flSearch" placeholder="搜索 航班号 / 机场 / 机型 / 备注…">
       <select id="flYear"><option value="">全部年份</option></select>
@@ -115,8 +120,11 @@
       </label>
       <span class="cnt-info" id="cntInfo"></span>
     </div>
+    </details>
 
-    <div class="table-wrap">
+    <div class="flight-cards" id="flightCards" aria-live="polite"></div>
+
+    <div class="table-wrap table-wrap--desktop">
       <table>
         <thead>
           <tr>
@@ -131,20 +139,20 @@
   </section>
 
   <!-- ===== Capture ===== -->
-  <section class="surface" id="surface-capture">
-    <div class="panel-head">
-      <h2>录入航程</h2>
+  <section class="surface" id="surface-capture" aria-labelledby="capture-title">
+    <header class="panel-head">
+      <h2 id="capture-title">录入航程</h2>
       <p class="sub">手动填写、航班号查询，或粘贴订票短信</p>
-    </div>
+    </header>
 
-    <nav class="tabs">
-      <button type="button" class="tab active" data-tab="manual">手动录入</button>
-      <button type="button" class="tab" data-tab="lookup">航班号查询</button>
-      <button type="button" class="tab" data-tab="import">短信导入</button>
-      <button type="button" class="tab" data-tab="smart">智能配置</button>
+    <nav class="tabs capture-tabs" role="tablist" aria-label="录入方式">
+      <button type="button" role="tab" class="tab active" data-tab="manual" aria-selected="true" aria-controls="panel-manual" id="tab-manual">手动录入</button>
+      <button type="button" role="tab" class="tab" data-tab="lookup" aria-selected="false" aria-controls="panel-lookup" id="tab-lookup">航班号查询</button>
+      <button type="button" role="tab" class="tab" data-tab="import" aria-selected="false" aria-controls="panel-import" id="tab-import">短信导入</button>
+      <button type="button" role="tab" class="tab" data-tab="smart" aria-selected="false" aria-controls="panel-smart" id="tab-smart">智能配置</button>
     </nav>
 
-    <section class="tab-panel active" id="panel-manual">
+    <section class="tab-panel active" id="panel-manual" role="tabpanel" aria-labelledby="tab-manual">
       <div class="grid2">
         <div class="field"><label>日期 *</label><input type="date" id="mDate"></div>
         <div class="field"><label>航班号 *</label><input id="mFlight" placeholder="MU5101" style="text-transform:uppercase"></div>
@@ -203,7 +211,7 @@
       </div>
     </section>
 
-    <section class="tab-panel" id="panel-lookup">
+    <section class="tab-panel" id="panel-lookup" role="tabpanel" aria-labelledby="tab-lookup" hidden>
       <div class="grid2">
         <div class="field"><label>航班号 *</label><input id="lkFlight" placeholder="CA1902 或仅 1902" style="text-transform:uppercase"></div>
         <div class="field"><label>日期 *</label><input type="date" id="lkDate"></div>
@@ -214,7 +222,7 @@
       <div class="results" id="lkResult"></div>
     </section>
 
-    <section class="tab-panel" id="panel-import">
+    <section class="tab-panel" id="panel-import" role="tabpanel" aria-labelledby="tab-import" hidden>
       <div class="field">
         <label>粘贴订票短信 / 行程文本 / 邮件</label>
         <textarea id="imText" placeholder="例：您已出票 MU5101 2026-05-01 北京首都T2 → 上海虹桥T2 座位32A，祝旅途愉快。&#10;支持多段行程；解析后可改再入库。配置 LLM 后正则失败会走 AI。"></textarea>
@@ -225,7 +233,7 @@
       <div class="results" id="imResult"></div>
     </section>
 
-    <section class="tab-panel" id="panel-smart">
+    <section class="tab-panel" id="panel-smart" role="tabpanel" aria-labelledby="tab-smart" hidden>
       <p class="sub" style="margin-top:0">默认已启用免费航线库 adsbdb（零配置）。下列密钥可选，只存在本机 <code>data/api_keys.json</code>。</p>
       <div id="smartStatus" class="stat-strip" style="margin-bottom:1rem"></div>
 
@@ -285,9 +293,27 @@
 
 </main>
 
-<div class="import-dialog" id="importDialog" role="dialog" aria-modal="true">
+<aside class="flight-sheet" id="flightSheet" aria-labelledby="flightSheetTitle" aria-hidden="true">
+  <div class="flight-sheet-scrim" id="flightSheetScrim" tabindex="-1"></div>
+  <div class="flight-sheet-panel" role="dialog" aria-modal="true">
+    <header class="flight-sheet-head">
+      <div>
+        <p class="flight-sheet-route" id="flightSheetRoute"></p>
+        <h3 id="flightSheetTitle"></h3>
+      </div>
+      <button type="button" class="icon-btn" id="flightSheetClose" aria-label="关闭详情">×</button>
+    </header>
+    <div class="flight-sheet-body" id="flightSheetBody"></div>
+    <footer class="flight-sheet-foot">
+      <button type="button" class="btn btn-ghost" id="flightSheetEdit">编辑</button>
+      <button type="button" class="btn btn-danger" id="flightSheetDelete">删除</button>
+    </footer>
+  </div>
+</aside>
+
+<div class="import-dialog" id="importDialog" role="dialog" aria-modal="true" aria-labelledby="importDialogTitle">
   <div class="box">
-    <h3>导入航班</h3>
+    <h3 id="importDialogTitle">导入航班</h3>
     <p id="importDialogMsg">选择追加到现有档案，或清空后覆盖写入。</p>
     <div class="actions">
       <button type="button" class="btn btn-primary" id="importAppend">追加</button>
@@ -299,6 +325,21 @@
 
 <div id="toast"></div>
 
+<nav class="nav-dock" aria-label="主导航">
+  <button type="button" data-surface="atlas" class="active" aria-current="page">
+    <span class="nav-dock-icon" aria-hidden="true">◉</span>
+    <span>档案</span>
+  </button>
+  <button type="button" data-surface="logbook">
+    <span class="nav-dock-icon" aria-hidden="true">☰</span>
+    <span>明细</span>
+  </button>
+  <button type="button" data-surface="capture">
+    <span class="nav-dock-icon" aria-hidden="true">＋</span>
+    <span>录入</span>
+  </button>
+</nav>
+
 <footer class="site-foot">
   <span>© 2026 FlightLog</span>
   <a href="https://github.com/AlexanderJ-Carter/flightlog">源码</a>
@@ -306,6 +347,6 @@
   <a href="https://github.com/AlexanderJ-Carter/flightlog/blob/main/docs/THIRD_PARTY_NOTICES.md">第三方数据</a>
 </footer>
 
-<script type="module" src="/js/app.js?v=20261016b"></script>
+<script type="module" src="/js/app.js?v=20261027a"></script>
 </body>
 </html>

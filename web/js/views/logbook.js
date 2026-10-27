@@ -1,4 +1,4 @@
-/** 明细表面：筛选、表格、导出导入、编辑删除 */
+/** 明细表面：筛选、表格/卡片、详情、导出导入、编辑删除 */
 
 import { api } from "../api.js";
 import {
@@ -9,14 +9,144 @@ import {
   refresh,
   subscribe,
 } from "../store.js";
-import { esc, toast } from "../util.js";
+import {
+  esc,
+  toast,
+  labelCabin,
+  labelSeatType,
+  labelReason,
+  formatKm,
+} from "../util.js";
 
 let pendingImport = null;
 let unsub = null;
 let filterTimer = null;
+let sheetFlightId = null;
 
 function hasActiveFilters(f) {
   return !!(f.q || f.year || f.airline || f.airport);
+}
+
+function emptyMessage(state) {
+  if (!state.connected) {
+    return {
+      icon: "⚠",
+      title: "无法连接后端",
+      sub: "请先启动服务后再查看明细",
+    };
+  }
+  if (hasActiveFilters(state.filters)) {
+    return { icon: "⌕", title: "无匹配结果", sub: "试试清空筛选条件" };
+  }
+  return {
+    icon: "✈",
+    title: "暂无航班记录",
+    sub: "切换到「录入」添加第一段航程",
+  };
+}
+
+function detailHtml(f) {
+  const rows = [];
+  const row = (label, value) => {
+    if (!value) return;
+    rows.push(
+      `<div class="detail-row"><span class="detail-k">${esc(label)}</span>` +
+        `<span class="detail-v">${value}</span></div>`
+    );
+  };
+  row("日期", esc(f.date));
+  row("航班", `<strong>${esc(f.flight)}</strong>`);
+  row("航线", `${esc(f.from)} → ${esc(f.to)}`);
+  row("里程", formatKm(f.distance_km));
+  if (f.aircraft) row("机型", esc(f.aircraft));
+  if (f.registration) row("注册号", esc(f.registration));
+  if (f.seat) row("座位", esc(f.seat));
+  const seatType = labelSeatType(f.seat_type);
+  if (seatType) row("座位类型", esc(seatType));
+  const cabin = labelCabin(f.cabin_class);
+  if (cabin) row("舱位", esc(cabin));
+  const reason = labelReason(f.flight_reason);
+  if (reason) row("事由", esc(reason));
+  if (f.dep_time || f.arr_time) {
+    row(
+      "时刻",
+      esc([f.dep_time, f.arr_time].filter(Boolean).join(" → "))
+    );
+  }
+  if (f.dep_terminal || f.arr_terminal) {
+    row(
+      "航站楼",
+      esc([f.dep_terminal, f.arr_terminal].filter(Boolean).join(" → "))
+    );
+  }
+  if (f.dep_gate || f.arr_gate) {
+    row(
+      "登机口",
+      esc([f.dep_gate, f.arr_gate].filter(Boolean).join(" → "))
+    );
+  }
+  if (f.trip_id) row("行程", esc(f.trip_id));
+  if (f.note) row("备注", esc(f.note));
+  return rows.join("") || '<p class="muted">暂无更多字段</p>';
+}
+
+function openSheet(f) {
+  sheetFlightId = f.id;
+  const sheet = document.getElementById("flightSheet");
+  if (!sheet) return;
+  document.getElementById("flightSheetRoute").textContent =
+    `${f.from} → ${f.to}`;
+  document.getElementById("flightSheetTitle").textContent = f.flight;
+  document.getElementById("flightSheetBody").innerHTML = detailHtml(f);
+  sheet.classList.add("open");
+  sheet.setAttribute("aria-hidden", "false");
+  document.getElementById("flightSheetClose")?.focus();
+}
+
+function closeSheet() {
+  sheetFlightId = null;
+  const sheet = document.getElementById("flightSheet");
+  sheet?.classList.remove("open");
+  sheet?.setAttribute("aria-hidden", "true");
+}
+
+function renderCards(state, flights) {
+  const wrap = document.getElementById("flightCards");
+  if (!wrap) return;
+
+  if (state.loading && !flights.length) {
+    wrap.innerHTML =
+      '<div class="hint"><span class="spin"></span>加载中…</div>';
+    return;
+  }
+  if (!flights.length) {
+    const m = emptyMessage(state);
+    wrap.innerHTML =
+      `<div class="empty"><span class="icon">${m.icon}</span>` +
+      `${esc(m.title)}<br><small>${esc(m.sub)}</small></div>`;
+    return;
+  }
+
+  wrap.innerHTML = flights
+    .map(
+      (f) =>
+        `<article class="flight-card" data-flight-id="${f.id}" tabindex="0">` +
+        `<div class="flight-card-top">` +
+        `<time datetime="${esc(f.date)}">${esc(f.date)}</time>` +
+        `<span class="flight-card-no">${esc(f.flight)}</span>` +
+        `</div>` +
+        `<p class="flight-card-route">${esc(f.from)} <span aria-hidden="true">→</span> ${esc(f.to)}</p>` +
+        `<div class="flight-card-meta">` +
+        (f.aircraft
+          ? `<span class="ac-badge">${esc(f.aircraft)}</span>`
+          : "") +
+        (f.seat ? `<span>${esc(f.seat)}</span>` : "") +
+        (f.distance_km
+          ? `<span class="muted">${esc(formatKm(f.distance_km))}</span>`
+          : "") +
+        `</div></article>`
+    )
+    .join("");
 }
 
 function renderTable(state) {
@@ -26,34 +156,25 @@ function renderTable(state) {
   const flights = state.flights || [];
   if (cnt) cnt.textContent = flights.length ? `${flights.length} 条` : "";
 
+  renderCards(state, flights);
+
   if (state.loading && !flights.length) {
     tb.innerHTML =
       '<tr><td colspan="8" class="hint"><span class="spin"></span>加载中…</td></tr>';
     return;
   }
-  if (!state.connected) {
-    tb.innerHTML =
-      '<tr><td colspan="8" class="empty"><span class="icon">⚠</span>' +
-      "无法连接后端<br><small>请先启动服务后再查看明细</small></td></tr>";
-    return;
-  }
   if (!flights.length) {
-    if (hasActiveFilters(state.filters)) {
-      tb.innerHTML =
-        '<tr><td colspan="8" class="empty"><span class="icon">⌕</span>' +
-        "无匹配结果<br><small>试试清空筛选条件</small></td></tr>";
-    } else {
-      tb.innerHTML =
-        '<tr><td colspan="8" class="empty"><span class="icon">✈</span>' +
-        "暂无航班记录<br><small>切换到「录入」添加第一段航程</small></td></tr>";
-    }
+    const m = emptyMessage(state);
+    tb.innerHTML =
+      `<tr><td colspan="8" class="empty"><span class="icon">${m.icon}</span>` +
+      `${esc(m.title)}<br><small>${esc(m.sub)}</small></td></tr>`;
     return;
   }
 
   tb.innerHTML = flights
     .map(
       (f) =>
-        `<tr>
+        `<tr class="flight-row" data-flight-id="${f.id}" tabindex="0">
       <td>${esc(f.date)}</td>
       <td class="fl">${esc(f.flight)}</td>
       <td class="route">${esc(f.from)} → ${esc(f.to)}</td>
@@ -66,8 +187,8 @@ function renderTable(state) {
       <td>${esc(f.seat) || '<span class="muted">–</span>'}</td>
       <td class="muted">${esc(f.note)}</td>
       <td class="row-actions">
-        <button class="btn btn-sm btn-ghost" data-edit="${f.id}">编辑</button>
-        <button class="btn btn-sm btn-danger" data-del="${f.id}">删除</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-edit="${f.id}">编辑</button>
+        <button type="button" class="btn btn-sm btn-danger" data-del="${f.id}">删除</button>
       </td>
     </tr>`
     )
@@ -107,6 +228,7 @@ async function onDelete(id) {
   try {
     await api.deleteFlight(id);
     toast("已删除");
+    if (sheetFlightId === id) closeSheet();
     await refresh();
   } catch (e) {
     toast("删除失败：" + e.message, { err: true });
@@ -115,8 +237,17 @@ async function onDelete(id) {
 
 function onEdit(id) {
   const f = (getState().flights || []).find((x) => x.id === id);
+  closeSheet();
   setEditing(id, f || null);
   setSurface("capture");
+}
+
+function openFlightFromTarget(target) {
+  const el = target.closest("[data-flight-id]");
+  if (!el || target.closest("[data-edit],[data-del]")) return;
+  const id = +el.dataset.flightId;
+  const f = (getState().flights || []).find((x) => x.id === id);
+  if (f) openSheet(f);
 }
 
 async function doImport(replace) {
@@ -183,7 +314,6 @@ export function mountLogbook() {
     const source =
       document.getElementById("importSource")?.value || "auto";
     try {
-      // 先 dry-run 预览条数
       const preview = await api.importFile(file, {
         source,
         dryRun: true,
@@ -222,6 +352,10 @@ export function mountLogbook() {
     if (dialog?.classList.contains("open")) {
       pendingImport = null;
       dialog.classList.remove("open");
+      return;
+    }
+    if (document.getElementById("flightSheet")?.classList.contains("open")) {
+      closeSheet();
     }
   });
 
@@ -229,7 +363,29 @@ export function mountLogbook() {
     const edit = e.target.closest("[data-edit]");
     const del = e.target.closest("[data-del]");
     if (edit) onEdit(+edit.dataset.edit);
-    if (del) onDelete(+del.dataset.del);
+    else if (del) onDelete(+del.dataset.del);
+    else openFlightFromTarget(e.target);
+  });
+  document.getElementById("tbody")?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    openFlightFromTarget(e.target);
+  });
+
+  document.getElementById("flightCards")?.addEventListener("click", (e) => {
+    openFlightFromTarget(e.target);
+  });
+  document.getElementById("flightCards")?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    openFlightFromTarget(e.target);
+  });
+
+  document.getElementById("flightSheetClose")?.addEventListener("click", closeSheet);
+  document.getElementById("flightSheetScrim")?.addEventListener("click", closeSheet);
+  document.getElementById("flightSheetEdit")?.addEventListener("click", () => {
+    if (sheetFlightId != null) onEdit(sheetFlightId);
+  });
+  document.getElementById("flightSheetDelete")?.addEventListener("click", () => {
+    if (sheetFlightId != null) onDelete(sheetFlightId);
   });
 
   unsub = subscribe((state) => {

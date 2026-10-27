@@ -33,7 +33,10 @@ async function refreshProviderPill() {
 
 function syncChrome(state) {
   document.querySelectorAll("[data-surface]").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.surface === state.surface);
+    const on = btn.dataset.surface === state.surface;
+    btn.classList.toggle("active", on);
+    if (on) btn.setAttribute("aria-current", "page");
+    else btn.removeAttribute("aria-current");
   });
   document.querySelectorAll(".surface").forEach((el) => {
     el.classList.toggle("active", el.id === "surface-" + state.surface);
