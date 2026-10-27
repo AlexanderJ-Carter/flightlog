@@ -92,10 +92,36 @@ def session_email(request: Request) -> str | None:
     return data.get("email") or None
 
 
-def public_origin(request: Request) -> str:
-    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+def _configured_public_origin() -> str | None:
+    raw = os.environ.get("FLIGHTLOG_PUBLIC_ORIGIN", "").strip()
+    if not raw:
+        return None
+    return raw.rstrip("/")
+
+
+def _request_host(request: Request) -> str:
     host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
-    host = host.split(",")[0].strip()
+    return host.split(",")[0].strip()
+
+
+def _request_hostname(request: Request) -> str:
+    return _request_host(request).split(":")[0].lower()
+
+
+def public_origin(request: Request) -> str:
+    configured = _configured_public_origin()
+    if configured:
+        return configured
+    host = _request_host(request)
+    if not host:
+        return str(request.base_url).rstrip("/")
+    fwd_proto = request.headers.get("x-forwarded-proto")
+    if fwd_proto:
+        proto = fwd_proto.split(",")[0].strip()
+    elif _request_hostname(request) in _hosts():
+        proto = "https"
+    else:
+        proto = request.url.scheme
     return f"{proto}://{host}".rstrip("/")
 
 
@@ -113,8 +139,15 @@ def _redirect_uri(request: Request) -> str:
 
 
 def _secure(request: Request) -> bool:
-    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
-    return proto == "https"
+    configured = _configured_public_origin()
+    if configured:
+        return configured.lower().startswith("https://")
+    fwd_proto = request.headers.get("x-forwarded-proto")
+    if fwd_proto:
+        return fwd_proto.split(",")[0].strip() == "https"
+    if _request_hostname(request) in _hosts():
+        return True
+    return request.url.scheme == "https"
 
 
 async def _discovery() -> dict:

@@ -118,6 +118,7 @@ FLIGHTLOG_DATA_DIR=../data uv run python sync_catalog.py
 | `FLIGHTLOG_OIDC_CLIENT_ID` / `FLIGHTLOG_OIDC_CLIENT_SECRET` | Pocket ID 客户端 |
 | `FLIGHTLOG_OIDC_ALLOWED_EMAILS` | 允许登录的邮箱，逗号分隔 |
 | `FLIGHTLOG_OIDC_HOSTS` | 允许发起登录的主机名 |
+| `FLIGHTLOG_PUBLIC_ORIGIN` | 公网访问根 URL（如 `https://flightlog.alexander.xin`）；TLS 在反代/隧道终止时必填，用于 OIDC `redirect_uri` |
 | `FLIGHTLOG_SESSION_SECRET` | 会话签名密钥 |
 | `FLIGHTLOG_MEM_LIMIT` / `FLIGHTLOG_CPUS` | 容器上限（默认 256m / 0.5） |
 | `FLIGHTLOG_HARVEST_AUTO` | `0` 关闭自动采集（默认开） |
