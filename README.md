@@ -55,7 +55,7 @@ FLIGHTLOG_DATA_DIR=../data uv run python harvest_live.py     # 合法实时采�
 
 若通过 Cloudflare Tunnel、Nginx 等做 HTTPS 终结，请设置 `FLIGHTLOG_PUBLIC_ORIGIN=https://你的域名`，否则 Pocket ID 登录的 `redirect_uri` 可能仍是 `http://`。
 
-生产部署（腾讯 `/home/ubuntu/flightlog` + Docker；与 Folio 同机但**不**共用第二套 runner）见 [docs/DEPLOY.md](docs/DEPLOY.md)。
+生产部署（腾讯 self-hosted runner、与 Folio 同机）见 [docs/DEPLOY.md](docs/DEPLOY.md)。
 
 ```bash
 docker compose up -d --build

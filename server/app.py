@@ -14,6 +14,7 @@ import auth_oidc
 import catalog_db
 import config_store
 import db
+import seat_layout
 import extract as extractor
 import fleet_db
 import lookup as lookup_proxy
@@ -279,6 +280,12 @@ def put_flight(fid: int, body: FlightPatch):
 def delete_flight(fid: int):
     db.delete_flight(fid)
     return {"ok": True}
+
+
+@app.get("/api/seat-type")
+def api_seat_type(seat: str = "", aircraft: str = "", cabin_class: str = ""):
+    """根据座位号与机型推断靠窗/过道/中间。"""
+    return seat_layout.explain_inference(seat, aircraft=aircraft, cabin_class=cabin_class)
 
 
 @app.get("/api/stats")

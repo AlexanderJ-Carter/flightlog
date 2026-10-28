@@ -1,12 +1,8 @@
-# 仅 GitHub Pages 说明页（site/）；生产产品站在腾讯 Docker，见 docs/DEPLOY.md（手动部署；tencent-deploy.yml 仅可选 workflow_dispatch）。
+# site/ 说明页：私有仓未启用 GitHub Pages，勿自动 push 部署。
+# 需要时手动 workflow_dispatch；生产产品站见 docs/DEPLOY.md / tencent-deploy.yml。
 name: pages
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - site/**
-      - .github/workflows/pages.yml
   workflow_dispatch:
 
 permissions:

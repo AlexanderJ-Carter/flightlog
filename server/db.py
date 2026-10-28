@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from airports import AIRPORTS
 import fleet_db
+import seat_layout
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("FLIGHTLOG_DATA_DIR", os.path.join(BASE_DIR, "data"))
@@ -23,9 +24,15 @@ _lock = threading.Lock()
 
 
 def _connect():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA temp_store=MEMORY")
+    conn.execute("PRAGMA mmap_size=67108864")
+    conn.execute("PRAGMA cache_size=-16384")
+    conn.execute("PRAGMA busy_timeout=10000")
     return conn
 
 
@@ -95,17 +102,9 @@ def find_duplicate(date, flight, from_ap, to_ap, exclude_id=None):
     return row["id"] if row else None
 
 
-def infer_seat_type(seat: str) -> str:
-    """由座位号末字母粗推 window/aisle/middle（可被显式字段覆盖）。"""
-    s = (seat or "").strip().upper()
-    letter = next((c for c in reversed(s) if c.isalpha()), "")
-    if letter in "AFHK":
-        return "window"
-    if letter in "CDGJ":
-        return "aisle"
-    if letter in "BE":
-        return "middle"
-    return ""
+def infer_seat_type(seat: str, aircraft: str = "", cabin_class: str = "") -> str:
+    """由座位号 + 机型布局（+ 舱位）推断 window/aisle/middle。"""
+    return seat_layout.infer_seat_type(seat, aircraft=aircraft, cabin_class=cabin_class)
 
 
 def _resolve_airline_name(flight: str, explicit: str = "") -> str:
@@ -157,7 +156,9 @@ def add_flight(
 ):
     """插入一条飞行记录，返回新 id。"""
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    st = (seat_type or "").strip().lower() or infer_seat_type(seat)
+    st = (seat_type or "").strip().lower() or infer_seat_type(
+        seat, aircraft=aircraft, cabin_class=cabin_class
+    )
     aln = _resolve_airline_name(flight, airline_name)
     dur = int(duration_min) if duration_min not in (None, "") else None
     dist = compute_distance_km(from_ap, to_ap, distance_km)
@@ -226,8 +227,27 @@ def update_flight(fid, **fields):
 
     返回 False 表示该 id 不存在（未做任何修改）。
     """
-    if fields.get("seat") is not None and fields.get("seat_type") is None:
-        fields["seat_type"] = infer_seat_type(fields["seat"])
+    if fields.get("seat_type") is None and (
+        fields.get("seat") is not None
+        or fields.get("aircraft") is not None
+        or fields.get("cabin_class") is not None
+    ):
+        with _connect() as _c:
+            cur = _c.execute(
+                "SELECT seat, aircraft, cabin_class FROM flights WHERE id=?",
+                (flight_id,),
+            ).fetchone()
+        if cur:
+            seat_v = fields["seat"] if fields.get("seat") is not None else (cur["seat"] or "")
+            ac_v = (
+                fields["aircraft"] if fields.get("aircraft") is not None else (cur["aircraft"] or "")
+            )
+            cab_v = (
+                fields["cabin_class"]
+                if fields.get("cabin_class") is not None
+                else (cur["cabin_class"] or "")
+            )
+            fields["seat_type"] = infer_seat_type(seat_v, aircraft=ac_v, cabin_class=cab_v)
     if fields.get("cabin_class") is not None:
         fields["cabin_class"] = (fields["cabin_class"] or "").strip().lower()
     if fields.get("flight_reason") is not None:
@@ -350,7 +370,11 @@ def _row_payload(r: dict, flight: str) -> dict:
     seat = str(r.get("seat", "") or "")
     st = (
         str(r.get("seat_type", "") or "").strip().lower()
-        or infer_seat_type(seat)
+        or infer_seat_type(
+            seat,
+            aircraft=str(r.get("aircraft", "") or ""),
+            cabin_class=str(r.get("cabin_class", "") or ""),
+        )
     )
     from_ap = str(r.get("from", "")).upper()
     to_ap = str(r.get("to", "")).upper()
@@ -565,7 +589,11 @@ def stats():
         cc = (r["cabin_class"] or "").strip().lower()
         if cc:
             cabin[cc] += 1
-        st = (r["seat_type"] or "").strip().lower() or infer_seat_type(r["seat"] or "")
+        st = (r["seat_type"] or "").strip().lower() or infer_seat_type(
+            r["seat"] or "",
+            aircraft=r["aircraft"] or "",
+            cabin_class=r["cabin_class"] or "",
+        )
         if st:
             seat_pos[st] += 1
         fr = (r["flight_reason"] or "").strip().lower()

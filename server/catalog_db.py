@@ -40,6 +40,10 @@ def _connect():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA temp_store=MEMORY")
+    conn.execute("PRAGMA mmap_size=134217728")
+    conn.execute("PRAGMA cache_size=-32768")
+    conn.execute("PRAGMA busy_timeout=15000")
     return conn
 
 
@@ -624,6 +628,45 @@ def network_routes(
             "path": [[la1, lo1], [la2, lo2]],
         })
     return out
+
+
+def resolve_aircraft(code: str) -> dict:
+    """把机型代号解析成可读名称（net_plane_types + reg_icao_types）。"""
+    raw = (code or "").strip()
+    if not raw:
+        return {}
+    c = raw.upper()
+    init()
+    with _lock:
+        with _connect() as conn:
+            row = conn.execute(
+                "SELECT iata, icao, name FROM net_plane_types WHERE iata=? OR icao=?",
+                (c, c),
+            ).fetchone()
+            if row and (row["name"] or "").strip():
+                return {
+                    "code": c,
+                    "iata": row["iata"] or "",
+                    "icao": row["icao"] or "",
+                    "name": row["name"].strip(),
+                    "source": "catalog:plane_types",
+                }
+            row = conn.execute(
+                "SELECT designator, name, manufacturer, category "
+                "FROM reg_icao_types WHERE designator=?",
+                (c,),
+            ).fetchone()
+            if row and (row["name"] or "").strip():
+                return {
+                    "code": c,
+                    "iata": "",
+                    "icao": row["designator"] or c,
+                    "name": row["name"].strip(),
+                    "manufacturer": row["manufacturer"] or "",
+                    "category": row["category"] or "",
+                    "source": "catalog:icao_types",
+                }
+    return {}
 
 
 def airline_name(iata: str) -> str:

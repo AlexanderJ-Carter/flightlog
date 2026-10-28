@@ -1,3 +1,49 @@
+async function autoSeatTypeFromSeat() {
+  const seatEl = document.getElementById("mSeat");
+  const typeEl = document.getElementById("mSeatType");
+  const acEl = document.getElementById("mAircraft");
+  const cabEl = document.getElementById("mCabin");
+  if (!seatEl || !typeEl) return;
+  const seat = seatEl.value.trim();
+  if (!seat) return;
+  if (typeEl.dataset.userSet === "1" && typeEl.value) return;
+  const aircraft = acEl?.value.trim() || "";
+  const cabin_class = cabEl?.value || "";
+  try {
+    const q = new URLSearchParams({ seat, aircraft, cabin_class });
+    const r = await fetch(`/api/seat-type?${q}`);
+    if (!r.ok) return;
+    const j = await r.json();
+    if (j.seat_type) {
+      typeEl.value = j.seat_type;
+      typeEl.dataset.auto = "1";
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function wireSeatTypeInference() {
+  const seatTypeEl = document.getElementById("mSeatType");
+  if (!seatTypeEl || seatTypeEl.dataset.boundInfer === "1") return;
+  seatTypeEl.dataset.boundInfer = "1";
+  seatTypeEl.addEventListener("change", () => {
+    seatTypeEl.dataset.userSet = seatTypeEl.value ? "1" : "";
+    seatTypeEl.dataset.auto = "";
+  });
+  for (const id of ["mSeat", "mAircraft", "mCabin"]) {
+    const el = document.getElementById(id);
+    el?.addEventListener("change", () => {
+      if (seatTypeEl.dataset.userSet === "1") return;
+      autoSeatTypeFromSeat();
+    });
+    el?.addEventListener("blur", () => {
+      if (seatTypeEl.dataset.userSet === "1") return;
+      autoSeatTypeFromSeat();
+    });
+  }
+}
+
 /** 录入表面：手动 / 查询 / 短信；机场校验；成功后回地图 */
 
 import { api } from "../api.js";
@@ -54,9 +100,14 @@ function fillManualFromFlight(f) {
   document.getElementById("mSeat").value = f.seat || "";
   document.getElementById("mAircraft").value = f.aircraft || "";
   const st = document.getElementById("mSeatType");
-  if (st) st.value = f.seat_type || "";
+  if (st) {
+    st.value = f.seat_type || "";
+    st.dataset.userSet = f.seat_type ? "1" : "";
+    st.dataset.auto = "";
+  }
   const cab = document.getElementById("mCabin");
   if (cab) cab.value = f.cabin_class || "";
+  if (st && !st.value) autoSeatTypeFromSeat();
   const reason = document.getElementById("mReason");
   if (reason) reason.value = f.flight_reason || "";
   const reg = document.getElementById("mReg");
@@ -619,6 +670,7 @@ async function batchImport() {
 }
 
 export function mountCapture() {
+  wireSeatTypeInference();
   document.querySelectorAll(".tab").forEach((t) => {
     t.addEventListener("click", () => {
       showTab(t.dataset.tab);

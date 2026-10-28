@@ -82,14 +82,28 @@ def _unsign(token: str) -> dict | None:
         return None
 
 
+def cf_access_email(request: Request) -> str | None:
+    """Cloudflare Access 边缘已认证时注入的邮箱（免二次 OIDC）。"""
+    raw = (
+        request.headers.get("cf-access-authenticated-user-email")
+        or request.headers.get("Cf-Access-Authenticated-User-Email")
+        or ""
+    ).strip().lower()
+    if not raw:
+        return None
+    allow = _allowed()
+    if allow and raw not in allow:
+        return None
+    return raw
+
+
 def session_email(request: Request) -> str | None:
     token = request.cookies.get(_COOKIE)
-    if not token:
-        return None
-    data = _unsign(token)
-    if not data:
-        return None
-    return data.get("email") or None
+    if token:
+        data = _unsign(token)
+        if data:
+            return data.get("email") or None
+    return cf_access_email(request)
 
 
 def _configured_public_origin() -> str | None:
@@ -275,6 +289,29 @@ def logout(request: Request) -> RedirectResponse:
     return resp
 
 
+
+def mint_session_from_cf_access(request: Request) -> RedirectResponse | None:
+    """若仅有 CF Access 身份、尚无应用 cookie，签发 14 天会话并刷新当前页。"""
+    if request.cookies.get(_COOKIE):
+        return None
+    email = cf_access_email(request)
+    if not email:
+        return None
+    if request.url.path.startswith("/api/"):
+        return None
+    resp = RedirectResponse(str(request.url.path) or "/", status_code=302)
+    resp.set_cookie(
+        _COOKIE,
+        _sign({"email": email, "exp": int(time.time()) + _TTL}),
+        httponly=True,
+        secure=_secure(request),
+        samesite="lax",
+        max_age=_TTL,
+        path="/",
+    )
+    return resp
+
+
 def require(request: Request) -> Response | None:
     """已登录返回 None；否则返回应直接发出的响应。"""
     if not enabled():
@@ -290,6 +327,9 @@ def require(request: Request) -> Response | None:
         return None
     if path.startswith(("/css/", "/js/", "/fonts/")):
         return None
+    minted = mint_session_from_cf_access(request)
+    if minted is not None:
+        return minted
     if session_email(request):
         return None
     if path.startswith("/api/"):

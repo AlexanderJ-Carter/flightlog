@@ -153,6 +153,8 @@ def main(argv: list[str] | None = None) -> int:
         import_opensky()
     if not args.only_aircraft:
         import_openflights()
+        from harvest_live import import_planes_dat
+        import_planes_dat()
 
     print("—— fleet（观测/机尾）——")
     for k, v in fleet_db.stats().items():

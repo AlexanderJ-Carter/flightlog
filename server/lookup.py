@@ -153,6 +153,17 @@ def _attach_enthusiast(result: dict) -> dict:
         if name:
             result["airline"] = name
 
+    # 自建 catalog：机型代号 → 可读名称
+    code = (result.get("aircraft") or "").strip()
+    if code:
+        import fleet_db
+        label = fleet_db.plane_type_name(code)
+        if label:
+            result["aircraft_name"] = result.get("aircraft_name") or label
+            # 短代号（如 738 / B738）换成全名，便于档案展示
+            if len(code) <= 4 and code.replace("-", "").isalnum():
+                result["aircraft"] = label
+
     return _attach_airport_labels(result)
 
 

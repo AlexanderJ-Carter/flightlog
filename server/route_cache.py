@@ -19,7 +19,13 @@ _ready = False
 
 def _connect():
     os.makedirs(os.path.dirname(CACHE_DB) or ".", exist_ok=True)
-    conn = sqlite3.connect(CACHE_DB, timeout=5)
+    conn = sqlite3.connect(CACHE_DB, timeout=10)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA temp_store=MEMORY")
+    conn.execute("PRAGMA mmap_size=33554432")
+    conn.execute("PRAGMA cache_size=-8192")
+    conn.execute("PRAGMA busy_timeout=10000")
     return conn
 
 

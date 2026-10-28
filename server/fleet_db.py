@@ -20,8 +20,14 @@ _ready = False
 
 def _connect():
     os.makedirs(os.path.dirname(FLEET_DB) or ".", exist_ok=True)
-    conn = sqlite3.connect(FLEET_DB, timeout=5)
+    conn = sqlite3.connect(FLEET_DB, timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA temp_store=MEMORY")
+    conn.execute("PRAGMA mmap_size=67108864")
+    conn.execute("PRAGMA cache_size=-16384")
+    conn.execute("PRAGMA busy_timeout=10000")
     return conn
 
 
@@ -52,125 +58,26 @@ def init():
                     updated_at REAL NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_ac_reg ON aircraft(registration);
-                CREATE TABLE IF NOT EXISTS of_airlines(
-                    iata TEXT PRIMARY KEY,
-                    icao TEXT NOT NULL DEFAULT '',
-                    name TEXT NOT NULL DEFAULT '',
-                    country TEXT NOT NULL DEFAULT ''
-                );
-                CREATE TABLE IF NOT EXISTS of_routes(
-                    airline TEXT NOT NULL,
-                    from_ap TEXT NOT NULL,
-                    to_ap TEXT NOT NULL,
-                    equipment TEXT NOT NULL DEFAULT '',
-                    equipment_all TEXT NOT NULL DEFAULT '',
-                    PRIMARY KEY (airline, from_ap, to_ap)
-                );
-                CREATE INDEX IF NOT EXISTS idx_of_route_od
-                    ON of_routes(from_ap, to_ap);
-                CREATE TABLE IF NOT EXISTS plane_types(
-                    iata TEXT PRIMARY KEY,
-                    icao TEXT NOT NULL DEFAULT '',
-                    name TEXT NOT NULL DEFAULT ''
-                );
-                CREATE TABLE IF NOT EXISTS meta(
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL DEFAULT ''
-                );
-                CREATE TABLE IF NOT EXISTS oa_airports(
-                    icao TEXT PRIMARY KEY,
-                    iata TEXT NOT NULL DEFAULT '',
-                    name TEXT NOT NULL DEFAULT '',
-                    type TEXT NOT NULL DEFAULT '',
-                    lat REAL,
-                    lon REAL,
-                    elevation_ft INTEGER,
-                    iso_country TEXT NOT NULL DEFAULT '',
-                    municipality TEXT NOT NULL DEFAULT '',
-                    wikipedia TEXT NOT NULL DEFAULT '',
-                    home_link TEXT NOT NULL DEFAULT ''
-                );
-                CREATE INDEX IF NOT EXISTS idx_oa_iata ON oa_airports(iata);
-                CREATE TABLE IF NOT EXISTS oa_runways(
-                    airport_ident TEXT NOT NULL,
-                    length_ft INTEGER,
-                    width_ft INTEGER,
-                    surface TEXT NOT NULL DEFAULT '',
-                    lighted INTEGER NOT NULL DEFAULT 0,
-                    closed INTEGER NOT NULL DEFAULT 0,
-                    le_ident TEXT NOT NULL DEFAULT '',
-                    he_ident TEXT NOT NULL DEFAULT '',
-                    PRIMARY KEY (airport_ident, le_ident, he_ident)
-                );
-                CREATE INDEX IF NOT EXISTS idx_rwy_ap ON oa_runways(airport_ident);
-                CREATE TABLE IF NOT EXISTS oa_frequencies(
-                    airport_ident TEXT NOT NULL,
-                    type TEXT NOT NULL DEFAULT '',
-                    description TEXT NOT NULL DEFAULT '',
-                    frequency_mhz REAL,
-                    PRIMARY KEY (airport_ident, type, description, frequency_mhz)
-                );
-                CREATE INDEX IF NOT EXISTS idx_freq_ap ON oa_frequencies(airport_ident);
-                CREATE TABLE IF NOT EXISTS oa_navaids(
-                    ident TEXT NOT NULL,
-                    name TEXT NOT NULL DEFAULT '',
-                    type TEXT NOT NULL DEFAULT '',
-                    frequency_khz REAL,
-                    lat REAL,
-                    lon REAL,
-                    iso_country TEXT NOT NULL DEFAULT '',
-                    associated_airport TEXT NOT NULL DEFAULT '',
-                    PRIMARY KEY (ident, type, associated_airport)
-                );
-                CREATE INDEX IF NOT EXISTS idx_nav_ap ON oa_navaids(associated_airport);
-                CREATE TABLE IF NOT EXISTS faa_registry(
-                    n_number TEXT PRIMARY KEY,
-                    hex TEXT NOT NULL DEFAULT '',
-                    mfr_mdl TEXT NOT NULL DEFAULT '',
-                    year_mfr TEXT NOT NULL DEFAULT '',
-                    registrant TEXT NOT NULL DEFAULT '',
-                    city TEXT NOT NULL DEFAULT '',
-                    state TEXT NOT NULL DEFAULT '',
-                    status TEXT NOT NULL DEFAULT '',
-                    type_aircraft TEXT NOT NULL DEFAULT '',
-                    updated_at REAL NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_faa_hex ON faa_registry(hex);
-                CREATE TABLE IF NOT EXISTS data_sources(
-                    source TEXT PRIMARY KEY,
-                    rows INTEGER NOT NULL DEFAULT 0,
-                    imported_at REAL NOT NULL,
-                    note TEXT NOT NULL DEFAULT ''
-                );
-                CREATE TABLE IF NOT EXISTS icao_types(
-                    designator TEXT PRIMARY KEY,
-                    name TEXT NOT NULL DEFAULT '',
-                    manufacturer TEXT NOT NULL DEFAULT '',
-                    category TEXT NOT NULL DEFAULT ''
-                );
-                CREATE TABLE IF NOT EXISTS reg_prefixes(
-                    prefix TEXT PRIMARY KEY,
-                    country TEXT NOT NULL DEFAULT '',
-                    note TEXT NOT NULL DEFAULT ''
-                );
-                CREATE TABLE IF NOT EXISTS ref_airline_codes(
-                    iata TEXT NOT NULL DEFAULT '',
-                    icao TEXT NOT NULL DEFAULT '',
-                    name TEXT NOT NULL DEFAULT '',
-                    country TEXT NOT NULL DEFAULT '',
-                    PRIMARY KEY (iata, icao)
-                );
-                CREATE TABLE IF NOT EXISTS metar_codes(
-                    code TEXT PRIMARY KEY,
-                    meaning TEXT NOT NULL DEFAULT ''
-                );
-                CREATE TABLE IF NOT EXISTS squawk_codes(
-                    code TEXT PRIMARY KEY,
-                    meaning TEXT NOT NULL DEFAULT ''
-                );
                 """
             )
+            # 旧版曾把 OpenFlights/OurAirports 放在 fleet；现已迁 catalog，清掉空壳表
+            for _t in (
+                "of_airlines", "of_routes", "plane_types",
+                "oa_airports", "oa_runways", "oa_frequencies", "oa_navaids",
+                "faa_registry", "data_sources", "icao_types", "reg_prefixes",
+                "ref_airline_codes", "metar_codes", "squawk_codes",
+            ):
+                row = conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type=? AND name=?",
+                    ("table", _t),
+                ).fetchone()
+                if not row:
+                    continue
+                n = conn.execute(f"SELECT COUNT(*) AS n FROM [{_t}]").fetchone()["n"]
+                if int(n) == 0:
+                    conn.execute(f"DROP TABLE IF EXISTS [{_t}]")
         _ready = True
+
 
 
 def get_meta(key: str, default: str = "") -> str:
@@ -386,17 +293,9 @@ def replace_plane_types(rows: list[tuple]) -> int:
 
 
 def plane_type_name(code: str) -> str:
-    c = (code or "").strip().upper()
-    if not c:
-        return ""
     import catalog_db
-    catalog_db.init()
-    with catalog_db._lock:
-        with catalog_db._connect() as conn:
-            row = conn.execute(
-                "SELECT name FROM net_plane_types WHERE iata=? OR icao=?", (c, c)
-            ).fetchone()
-    return (row["name"] if row else "") or ""
+    info = catalog_db.resolve_aircraft(code)
+    return (info.get("name") or "").strip()
 
 
 def typical_equipment(from_ap: str, to_ap: str, flight: str = "") -> dict | None:
