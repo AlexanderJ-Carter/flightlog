@@ -235,7 +235,7 @@ def update_flight(fid, **fields):
         with _connect() as _c:
             cur = _c.execute(
                 "SELECT seat, aircraft, cabin_class FROM flights WHERE id=?",
-                (flight_id,),
+                (fid,),
             ).fetchone()
         if cur:
             seat_v = fields["seat"] if fields.get("seat") is not None else (cur["seat"] or "")
