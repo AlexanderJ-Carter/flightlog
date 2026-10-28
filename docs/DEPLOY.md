@@ -5,7 +5,7 @@
 | 层级 | 角色 | 说明 |
 |------|------|------|
 | 公网 | `flightlog.alexander.xin` | Cloudflare Tunnel（mycloud） |
-| AlexanderCloud | `~/fleet/flightlog-proxy` | **仅反代**到腾讯源站，不应再维护一份静态镜像 |
+| AlexanderCloud | `~/fleet/flightlog-proxy` | **整站反代**到腾讯 `:8321`（含 `/` `/css` `/js`）；勿再挂本地 `web/` 静态镜像 |
 | 腾讯 `100.111.222.66` | `/home/ubuntu/flightlog` + Docker `:8321` | **权威应用**（FastAPI 托管 `web/` + SQLite `data/`） |
 | GitHub | `pages.yml` | 只发布仓库内 `site/` 营销说明页到 GitHub Pages，**不是**产品站 |
 | GitHub | `tencent-deploy.yml`（本 PR） | push `main` 后由 **flightlog 专用 self-hosted runner** rsync + `docker compose` |
