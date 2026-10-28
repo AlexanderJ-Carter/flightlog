@@ -319,6 +319,7 @@ def require(request: Request) -> Response | None:
     path = request.url.path
     if path in (
         "/api/health",
+        "/api/seat-type",
         "/api/auth/login",
         "/api/auth/callback",
         "/api/auth/logout",

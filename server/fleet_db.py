@@ -58,6 +58,10 @@ def init():
                     updated_at REAL NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_ac_reg ON aircraft(registration);
+                CREATE TABLE IF NOT EXISTS meta(
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL DEFAULT ''
+                );
                 """
             )
             # 旧版曾把 OpenFlights/OurAirports 放在 fleet；现已迁 catalog，清掉空壳表
@@ -253,32 +257,15 @@ def stats() -> dict:
 
 
 def replace_airlines(rows: list[tuple]) -> int:
-    """全量替换 OpenFlights 航司：(iata, icao, name, country)。"""
-    _ensure()
-    with _lock:
-        with _connect() as conn:
-            conn.execute("DELETE FROM of_airlines")
-            conn.executemany(
-                "INSERT OR REPLACE INTO of_airlines(iata, icao, name, country) "
-                "VALUES(?,?,?,?)",
-                rows,
-            )
-            return len(rows)
+    """航司写入 catalog.net_airlines。"""
+    import catalog_db
+    return catalog_db.replace_airlines(rows)
 
 
 def replace_routes(rows: list[tuple]) -> int:
-    """全量替换 OpenFlights 航线：(airline, from, to, equipment, equipment_all)。"""
-    _ensure()
-    with _lock:
-        with _connect() as conn:
-            conn.execute("DELETE FROM of_routes")
-            conn.executemany(
-                "INSERT OR REPLACE INTO of_routes("
-                "airline, from_ap, to_ap, equipment, equipment_all) "
-                "VALUES(?,?,?,?,?)",
-                rows,
-            )
-            return len(rows)
+    """航线写入 catalog.net_routes。"""
+    import catalog_db
+    return catalog_db.replace_routes(rows)
 
 
 def airline_name(iata: str) -> str:
