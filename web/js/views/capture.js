@@ -1,3 +1,16 @@
+/** 录入表面：手动 / 查询 / 短信；机场校验；成功后回地图 */
+
+import { api, getBase } from "../api.js";
+import {
+  getState,
+  setSurface,
+  clearEditing,
+  refresh,
+  isKnownAirport,
+  subscribe,
+} from "../store.js";
+import { esc, toast, todayISO } from "../util.js";
+
 async function autoSeatTypeFromSeat() {
   const seatEl = document.getElementById("mSeat");
   const typeEl = document.getElementById("mSeatType");
@@ -11,7 +24,7 @@ async function autoSeatTypeFromSeat() {
   const cabin_class = cabEl?.value || "";
   try {
     const q = new URLSearchParams({ seat, aircraft, cabin_class });
-    const r = await fetch(`/api/seat-type?${q}`);
+    const r = await fetch(`${getBase()}/api/seat-type?${q}`);
     if (!r.ok) return;
     const j = await r.json();
     if (j.seat_type) {
@@ -43,19 +56,6 @@ function wireSeatTypeInference() {
     });
   }
 }
-
-/** 录入表面：手动 / 查询 / 短信；机场校验；成功后回地图 */
-
-import { api } from "../api.js";
-import {
-  getState,
-  setSurface,
-  clearEditing,
-  refresh,
-  isKnownAirport,
-  subscribe,
-} from "../store.js";
-import { esc, toast, todayISO } from "../util.js";
 
 function notifyConfigChanged() {
   window.dispatchEvent(new CustomEvent("fl-config-changed"));

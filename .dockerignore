@@ -7,6 +7,8 @@ data
 **/*.pyc
 **/*.pyo
 **/.DS_Store
+**/._*
+**/.AppleDouble
 **/.pytest_cache
 **/.ruff_cache
 **/.mypy_cache
