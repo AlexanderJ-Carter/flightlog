@@ -1,5 +1,5 @@
-# site/ 说明页：私有仓未启用 GitHub Pages，勿自动 push 部署。
-# 需要时手动 workflow_dispatch；生产产品站见 docs/DEPLOY.md / tencent-deploy.yml。
+# site/ 仅作仓库静态说明页；生产站走 Tunnel（flightlog.alexander.xin），见 docs/DEPLOY.md。
+# 仓库未启用 GitHub Pages，此工作流仅保留为可选手动开关，避免历史 push 部署 404 刷红。
 name: pages
 
 on:
@@ -7,27 +7,12 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
-  deploy:
+  skip:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - name: 静态页
+      - name: Pages 未启用
         run: |
-          mkdir -p _site
-          cp site/index.html _site/index.html
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          echo "GitHub Pages 未用于本仓部署；生产见 docs/DEPLOY.md / tencent-deploy.yml。"
+          echo "如需启用，先在 Settings → Pages 打开，再恢复 deploy-pages 步骤。"
